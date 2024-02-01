@@ -48,11 +48,13 @@ Resources:
   TransactionStream:
     Type: AWS::Kinesis::Stream
     Properties:
+      ShardCount: 5
+      RetentionPeriodHours: 24
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
       StreamModeDetails:
-        StreamMode: ON_DEMAND
+        StreamMode: PROVISIONED
   TransactionPublisher:
     Type: AWS::Serverless::Function
     Properties:
