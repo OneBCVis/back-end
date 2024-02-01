@@ -44,28 +44,7 @@ def process_transactions(records):
         for record in records:
             try:
                 txn = json.loads(base64.b64decode(record["kinesis"]["data"]))
-
-                if (not isinstance(txn["Sender"], list)) or (not isinstance(txn["Receiver"], list)):
-                    logger.error(f"ERROR: Unexpected error: Sender and Receiver should be arrays of transaction: {txn["Hash"]}. Skipping insert")
-                    continue
-
-                if txn["Status"] not in ("Pending", "Approved", "Rejected"):
-                    logger.error(f"ERROR: Unexpected error: Status should be one of (Pending, Approved, Rejected): {txn['Status']}")
-                    continue
-
-                if not isinstance(txn["Amount"], int):
-                    logger.error(f"ERROR: Unexpected error: Amount should be an integer: {txn['Amount']}")
-                    continue
-
-                if txn["Amount"] < 0:
-                    logger.error(f"ERROR: Unexpected error: Amount should be either a positive number or zero: {txn['Amount']}")
-                    continue
-            except Exception as e:
-                logger.error(f"ERROR: Unexpected error: Could not parse transaction: {e}")
-                continue
-
-            sql_insert_txn = "INSERT INTO transaction (txn_hash, status, amount) VALUES (%s, %s, %s)"
-            try:
+                sql_insert_txn = "INSERT INTO transaction (txn_hash, status, amount) VALUES (%s, %s, %s)"
                 cur.execute(sql_insert_txn, (txn["Hash"], txn["Status"], txn["Amount"]))
 
                 for sender in txn["Sender"]:
@@ -85,7 +64,10 @@ def process_transactions(records):
                 else:
                     logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
                     conn.rollback()
+            except pymysql.MySQLError as e:
+                logger.error(f"ERROR: MySQL Error occurred: {e}")
+                conn.rollback()
             except Exception as e:
-                logger.error(f"ERROR: Unexpected error occurred: {e}")
+                logger.error(f"ERROR: Could not process transaction: {e}")
                 conn.rollback()
     conn.commit()
