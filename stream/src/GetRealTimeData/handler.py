@@ -2,13 +2,13 @@ import json
 import pymysql
 from datetime import datetime
 import logging
-import sys
+import os
 
-# rds settings (this has to change as per RDS instance data)
-user_name = "XXXX"
-password = "XXXX"
-rds_proxy_host = "XXXX"
-db_name = "XXXX"
+# rds settings 
+user_name = os.environ['RDS_USER_NAME']
+password = os.environ['RDS_PASSWORD']
+rds_proxy_host = os.environ['RDS_PROXY_HOST']
+db_name = os.environ['RDS_DB_NAME']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -33,12 +33,12 @@ def get_real_time_data(event):
         
         cursor = conn.cursor()
         
-        query_get_transactions = f"SELECT * FROM transaction WHERE insert_time > {date_time_obj}"
-        cursor.execute(query_get_transactions)
+        query_get_transactions = "SELECT * FROM transaction WHERE insert_time > ?"
+        cursor.execute(query_get_transactions, (date_time_obj))
         result_transactions = cursor.fetchall()
         
-        query_get_blocks = f"SELECT b.block_hash, bt.txn_hash FROM block b JOIN block_txn bt ON b.block_hash = bt.block_hash WHERE b.insert_time > {date_time_obj}" 
-        cursor.execute(query_get_blocks)
+        query_get_blocks = "SELECT b.block_hash, bt.txn_hash FROM block b JOIN block_txn bt ON b.block_hash = bt.block_hash WHERE b.insert_time > ?" 
+        cursor.execute(query_get_blocks, (date_time_obj))
         result_blocks = cursor.fetchall()
                 
         cursor.close()
