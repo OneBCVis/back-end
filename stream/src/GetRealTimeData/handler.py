@@ -4,27 +4,27 @@ from datetime import datetime
 import logging
 import os
 
+
 # rds settings 
-user_name = os.environ['RDS_USER_NAME']
+# TODO: Use AWS Secrets Manager to store credentials
+user_name = os.environ['RDS_USERNAME']
 password = os.environ['RDS_PASSWORD']
-rds_proxy_host = os.environ['RDS_PROXY_HOST']
+rds_proxy_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
     
+
 def handler(event, context):
     # Log the event argument for debugging and for use in local development.
     print(json.dumps(event))
-    get_real_time_data(event)
-
-    return {}
+    return get_real_time_data(event)
 
 def get_real_time_data(event):
     try:
-        message = event['Records'][0]['body']
-        data = json.loads(message)
-        last_timestamp = data['last_timestamp']
+        body = json.loads(json.loads(event['body']))
+        last_timestamp = body['last_timestamp']
         
         date_time_obj = datetime.utcfromtimestamp(last_timestamp)
         
@@ -46,6 +46,9 @@ def get_real_time_data(event):
         
         response = {
             "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
             "body": json.dumps({'transactions': result_transactions,
                                 'blocks': format_blocks(result_blocks)})
         }
@@ -55,9 +58,13 @@ def get_real_time_data(event):
     except Exception as e:
         return {
             "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json"
+            },
             "body": json.dumps({"error": str(e)})
         }
-    
+
+
 def format_blocks(result_blocks):
     blocks_dict = {}
     for block_hash, txn_hash in result_blocks:
