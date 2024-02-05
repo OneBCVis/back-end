@@ -1,2 +1,8 @@
 # AWS SAM local build
 .aws-sam/
+
+# Testing
+test-data/
+
+# Deployment configuration
+samconfig.toml
