@@ -79,14 +79,47 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt TransactionPublisherRole.Arn
   TransactionPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${TransactionPublisher}
+  TransactionPublisherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: TransactionPublisherRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kinesis:DescribeStream
+                  - kinesis:GetShardIterator
+                  - kinesis:GetRecords
+                Resource: !GetAtt TransactionStream.Arn
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   BlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
@@ -104,6 +137,9 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -113,11 +149,41 @@ Resources:
           Properties:
             Queue: !GetAtt BlockStream.Arn
             BatchSize: 1
+      Role: !GetAtt BlockPublisherRole.Arn
   BlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${BlockPublisher}
+  BlockPublisherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BlockPublisherRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:DeleteMessage
+                  - sqs:ReceiveMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt BlockStream.Arn
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   GetRealTimeData:
     Type: AWS::Serverless::Function
     Properties:
@@ -145,11 +211,35 @@ Resources:
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt GetRealTimeDataRole.Arn
   GetRealTimeDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetRealTimeData}
+  GetRealTimeDataRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetRealTimeDataRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   GetReplayData:
     Type: AWS::Serverless::Function
     Properties:
@@ -177,11 +267,35 @@ Resources:
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt GetReplayDataRole.Arn
   GetReplayDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetReplayData}
+  GetReplayDataRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetReplayDataRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   GetStats:
     Type: AWS::Serverless::Function
     Properties:
@@ -209,11 +323,35 @@ Resources:
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt GetStatsRole.Arn
   GetStatsLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetStats}
+  GetStatsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetStatsRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   GetTransaction:
     Type: AWS::Serverless::Function
     Properties:
@@ -241,17 +379,42 @@ Resources:
             Path: /transaction/
             Method: GET
             RestApiId: !Ref Api
+      Role: !GetAtt GetTransactionRole.Arn
   GetTransactionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetTransaction}
+  GetTransactionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetTransactionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
   BlockStream:
     Type: AWS::SQS::Queue
     Properties:
       FifoQueue: true
       ContentBasedDeduplication: true
       MessageRetentionPeriod: 86400
+      VisibilityTimeout: 60
 Metadata:
   AWS::Composer::ExternalResources:
     RDS:
@@ -260,10 +423,19 @@ Metadata:
         Port: !Ref RDSPort
         Hostname: !Ref RDSHostname
         SecretArn: !Ref RDSSecretArn
+        Arn: !Ref RDSArn
 Parameters:
   RDSPort:
     Type: Number
   RDSHostname:
     Type: String
   RDSSecretArn:
+    Type: String
+  RDSArn:
+    Type: String
+  RDSUsername:
+    Type: String
+  RDSPassword:
+    Type: String
+  RDSDBName:
     Type: String
