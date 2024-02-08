@@ -7,12 +7,14 @@ import base64
 
 
 # RDS settings
-
 # TODO: Use AWS Secrets Manager to store credentials
 user_name = os.environ['RDS_USERNAME']
 password = os.environ['RDS_PASSWORD']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 def handler(event, context):
@@ -23,7 +25,6 @@ def handler(event, context):
 def get_data_from_rds(event):
     try:
         body = json.loads(base64.b64decode(event['body']))
-        print(body)
         start_timestamp = body['start_time']
         end_timestamp = body['end_time']
         
@@ -32,7 +33,7 @@ def get_data_from_rds(event):
         
         cursor = conn.cursor()
         
-        print("SUCCESS: Connection to RDS MySQL instance succeeded")
+        logger.info("SUCCESS: Able to connect to RDS MySQL instance")
         
         query_get_transactions = "SELECT t.txn_hash, t.status, t.amount FROM transaction t WHERE t.insert_time >= %s AND t.insert_time  < %s"
         cursor.execute(query_get_transactions, (start_timestamp, end_timestamp))
@@ -55,13 +56,10 @@ def get_data_from_rds(event):
                 "blocks": get_block_response(result_blocks)
             })
         }
-                
-        return response
-    
-    # TODO: Add specific exceptions
-    except Exception as e:
-        logging.error(e)
-        return {
+
+    except pymysql.MySQLError as e:
+        logger.error(f"ERROR: MySQL Error occurred: {e}")
+        response =  {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -70,6 +68,21 @@ def get_data_from_rds(event):
                 "error": "Internal Server Error"
             })
         }
+
+    except Exception as e:
+        logger.error(f"ERROR: Internal Server Error: {e}")
+        response =  {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "error": "Internal Server Error"
+            })
+        }
+
+    return response
+
 
 def get_transaction_response(result_transactions):
     transaction_response = []
@@ -83,13 +96,14 @@ def get_transaction_response(result_transactions):
         
     return transaction_response
 
+
 def get_block_response(result_blocks):
     block_response = []
     for block in result_blocks:
         block_dict = {
             "block_hash": block[0],
             "previous_block_hash": block[1],
-            "txn_hashes": block[2]
+            "txn_hashes": block[2].split(",")
         }
         block_response.append(block_dict)
         
