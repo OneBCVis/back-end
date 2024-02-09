@@ -13,19 +13,12 @@ Resources:
         openapi: '3.0'
         info: {}
         paths:
-          /:
+          /stream/:
             get:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetRealTimeData.Arn}/invocations
-              responses: {}
-          /replay/:
-            get:
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetReplayData.Arn}/invocations
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetStreamData.Arn}/invocations
               responses: {}
           /stats/:
             get:
@@ -184,13 +177,13 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
-  GetRealTimeData:
+  GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
       Description: !Sub
         - Stack ${AWS::StackName} Function ${ResourceName}
-        - ResourceName: GetRealTimeData
-      CodeUri: src/GetRealTimeData
+        - ResourceName: GetStreamData
+      CodeUri: src/GetStreamData
       Handler: handler.handler
       Runtime: python3.12
       MemorySize: 3008
@@ -200,7 +193,7 @@ Resources:
         ApiGET:
           Type: Api
           Properties:
-            Path: /
+            Path: /stream/
             Method: GET
             RestApiId: !Ref Api
       Environment:
@@ -211,13 +204,13 @@ Resources:
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
-      Role: !GetAtt GetRealTimeDataRole.Arn
-  GetRealTimeDataLogGroup:
+      Role: !GetAtt GetStreamDataRole.Arn
+  GetStreamDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
-      LogGroupName: !Sub /aws/lambda/${GetRealTimeData}
-  GetRealTimeDataRole:
+      LogGroupName: !Sub /aws/lambda/${GetStreamData}
+  GetStreamDataRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -228,63 +221,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: GetRealTimeDataRolePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource: !Ref RDSSecretArn
-  GetReplayData:
-    Type: AWS::Serverless::Function
-    Properties:
-      Description: !Sub
-        - Stack ${AWS::StackName} Function ${ResourceName}
-        - ResourceName: GetReplayData
-      CodeUri: src/GetReplayData
-      Handler: handler.handler
-      Runtime: python3.12
-      MemorySize: 3008
-      Timeout: 60
-      Tracing: Active
-      Events:
-        ApiGETreplay:
-          Type: Api
-          Properties:
-            Path: /replay/
-            Method: GET
-            RestApiId: !Ref Api
-      Environment:
-        Variables:
-          RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
-          RDS_SECRETARN: !Ref RDSSecretArn
-      Policies:
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Ref RDSSecretArn
-      Role: !GetAtt GetReplayDataRole.Arn
-  GetReplayDataLogGroup:
-    Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${GetReplayData}
-  GetReplayDataRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: GetReplayDataRolePolicy
+        - PolicyName: GetStreamDataRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
