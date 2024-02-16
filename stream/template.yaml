@@ -113,6 +113,21 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+
   BlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
@@ -177,6 +192,20 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
@@ -233,6 +262,20 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetStats:
     Type: AWS::Serverless::Function
     Properties:
@@ -289,6 +332,20 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetTransaction:
     Type: AWS::Serverless::Function
     Properties:
@@ -345,6 +402,20 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   BlockStream:
     Type: AWS::SQS::Queue
     Properties:
