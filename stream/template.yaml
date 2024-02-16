@@ -115,7 +115,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -201,7 +201,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -281,7 +281,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -358,7 +358,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -435,7 +435,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -469,7 +469,7 @@ Metadata:
         Port: !Ref RDSPort
         Hostname: !Ref RDSHostname
         SecretArn: !Ref RDSSecretArn
-        Arn: !Ref RDSArn
+        Arn: !Ref RDSProxyArn
 Parameters:
   RDSPort:
     Type: Number
@@ -477,7 +477,7 @@ Parameters:
     Type: String
   RDSSecretArn:
     Type: String
-  RDSArn:
+  RDSProxyArn:
     Type: String
   RDSUsername:
     Type: String
