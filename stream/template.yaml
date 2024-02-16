@@ -244,6 +244,9 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
