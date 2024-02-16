@@ -79,6 +79,13 @@ Resources:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt TransactionPublisherRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   TransactionPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -158,6 +165,13 @@ Resources:
             Queue: !GetAtt BlockStream.Arn
             BatchSize: 1
       Role: !GetAtt BlockPublisherRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   BlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -234,6 +248,13 @@ Resources:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt GetStreamDataRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetStreamDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -304,6 +325,13 @@ Resources:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt GetStatsRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetStatsLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -374,6 +402,13 @@ Resources:
             Method: GET
             RestApiId: !Ref Api
       Role: !GetAtt GetTransactionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetTransactionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -446,4 +481,12 @@ Parameters:
   RDSPassword:
     Type: String
   RDSDBName:
+    Type: String
+  VPCSecurityGroup:
+    Type: String
+  VPCSubnet1:
+    Type: String
+  VPCSubnet2:
+    Type: String
+  VPCSubnet3:
     Type: String
