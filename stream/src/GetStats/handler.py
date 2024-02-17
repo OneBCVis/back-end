@@ -23,7 +23,7 @@ def handler(event, context):
 
 def get_stats(event):
     try:
-        body = json.loads(base64.b64decode(event['body']))
+        body = json.loads(event['body'])
         start_time = body['start_time']
 
         # get timestamp 1h back
