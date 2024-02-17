@@ -40,17 +40,17 @@ def get_stats(event):
 
         # Numer of transactions in last hour
         query_transactions_in_last_hour= "SELECT COUNT(t.txn_hash) FROM transaction t WHERE t.insert_time >= %s AND t.insert_time <= %s"
-        cursor.execute(query_transactions_in_last_hour, (start_time, end_time))
+        cursor.execute(query_transactions_in_last_hour, (end_time, start_time))
         result_transaction = cursor.fetchall()
 
         # Numer of blocks in last hour
         query_blocks_in_last_hour = "SELECT COUNT(b.block_hash) FROM block b WHERE b.insert_time >= %s AND b.insert_time <= %s"
-        cursor.execute(query_blocks_in_last_hour, (start_time, end_time))
+        cursor.execute(query_blocks_in_last_hour, (end_time, start_time))
         result_block = cursor.fetchall()
 
         # Total transactions amount of last hour
         query_total_transactions_amount = "SELECT SUM(t.amount) FROM transaction t WHERE insert_time >= %s AND insert_time <= %s"
-        cursor.execute(query_total_transactions_amount, (start_time, end_time))
+        cursor.execute(query_total_transactions_amount, (end_time, start_time))
         result_total_transactions_amount = cursor.fetchall()
 
         # Miners of the last 1000 blocks with group the repetitive miners and get the best 5 miners .
