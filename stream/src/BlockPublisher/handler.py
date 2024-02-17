@@ -56,10 +56,10 @@ def process_blocks(records):
                 logger.info(f"INFO: Inserted block with hash: {block['Hash']}")
                 conn.commit()
             except pymysql.IntegrityError as e:
-                if (e.args[0] == pymysql.constants.ER_DUP_ENTRY):
+                if e.args[0] == 1062:
                     logger.info(f"INFO: Duplicate block with hash: {block['Hash']}. Skipping insert")
                 else:
-                    logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
+                    logger.error(f"ERROR: MySQL Error occurred: {e}")
                     conn.rollback()
             except pymysql.MySQLError as e:
                 logger.error(f"ERROR: MySQL Error occurred: {e}")
