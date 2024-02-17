@@ -3,7 +3,6 @@ import pymysql
 from datetime import datetime
 import logging
 import os
-import base64
 
 
 # RDS settings
@@ -24,7 +23,7 @@ def handler(event, context):
 
 def get_data_from_rds(event):
     try:
-        body = json.loads(base64.b64decode(event['body']))
+        body = json.loads(event['body'])
         start_timestamp = body['start_time']
         end_timestamp = body['end_time']
         
