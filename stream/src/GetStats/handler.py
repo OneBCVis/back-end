@@ -20,19 +20,6 @@ def handler(event, context):
     # Log the event argument for debugging and for use in local development.
     return get_stats(event)
 
-# # of transactions in last hour
-# # of blocks in last hour
-# total transactions amount of last hour
-# miners of the last 1000 blocks
-
-# create table if not exists transaction
-# (
-#     txn_hash    varchar(128)                            not null,
-#     status      enum('PENDING', 'APPROVED', 'REJECTED') not null default 'PENDING',
-#     amount      int(16)                                 not null,
-#     insert_time timestamp                               not null default current_timestamp,
-#     primary key (txn_hash)
-# );
 
 def get_stats(event):
     try:
@@ -67,7 +54,9 @@ def get_stats(event):
         result_total_transactions_amount = cursor.fetchall()
 
         # Miners of the last 1000 blocks with group the repetitive miners and get the best 5 miners .
-        query_miners_of_last_1000_blocks = "SELECT miner, COUNT(miner) AS miner_count FROM (SELECT b.miner FROM block b ORDER BT b.insert_time DESC LIMIT 1000) AS recent_blocks GROUP BY miner ORDER BY miner_count DESC LIMIT 5"
+        query_miners_of_last_1000_blocks = '''SELECT miner, COUNT(miner) AS miner_count FROM 
+                                              (SELECT b.miner FROM block b ORDER BY b.insert_time DESC LIMIT 1000) AS recent_blocks 
+                                              GROUP BY miner ORDER BY miner_count DESC LIMIT 5'''
         cursor.execute(query_miners_of_last_1000_blocks)
         result_miners = cursor.fetchall()
 
