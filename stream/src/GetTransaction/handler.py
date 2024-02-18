@@ -2,7 +2,6 @@ import json
 import pymysql
 import logging
 import os
-import base64
 
 
 # RDS settings
@@ -22,7 +21,7 @@ def handler(event, context):
 
 def get_data_from_rds(event):
     try:
-        body = json.loads(base64.b64decode(event['body']))
+        body = json.loads((event['body']))
         txn_hash = body['txn_hash']
 
         # Connect to the database

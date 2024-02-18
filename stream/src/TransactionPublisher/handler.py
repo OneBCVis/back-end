@@ -58,11 +58,11 @@ def process_transactions(records):
                 logger.info(f"INFO: Inserted transaction with hash: {txn['Hash']}")
                 conn.commit()
             except pymysql.IntegrityError as e:
-                if e.args[0] == pymysql.constants.ER.DUP_ENTRY:
+                if e.args[0] == 1062:
                     logger.info(f"INFO: Duplicate transaction with hash: {txn['Hash']}. Skipping insert")
                     conn.rollback()
                 else:
-                    logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
+                    logger.error(f"ERROR: MySQL Error occurred: {e}")
                     conn.rollback()
             except pymysql.MySQLError as e:
                 logger.error(f"ERROR: MySQL Error occurred: {e}")
