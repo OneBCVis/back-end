@@ -79,6 +79,13 @@ Resources:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt TransactionPublisherRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   TransactionPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -108,11 +115,26 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+
   BlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
@@ -143,6 +165,13 @@ Resources:
             Queue: !GetAtt BlockStream.Arn
             BatchSize: 1
       Role: !GetAtt BlockPublisherRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   BlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -172,11 +201,25 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
@@ -201,10 +244,20 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt GetStreamDataRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetStreamDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -228,11 +281,25 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetStats:
     Type: AWS::Serverless::Function
     Properties:
@@ -257,10 +324,20 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
       Role: !GetAtt GetStatsRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetStatsLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -284,11 +361,25 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   GetTransaction:
     Type: AWS::Serverless::Function
     Properties:
@@ -306,6 +397,9 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_USERNAME: !Ref RDSUsername
+          RDS_PASSWORD: !Ref RDSPassword
+          RDS_DB_NAME: !Ref RDSDBName
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -317,6 +411,13 @@ Resources:
             Method: GET
             RestApiId: !Ref Api
       Role: !GetAtt GetTransactionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
   GetTransactionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -340,11 +441,25 @@ Resources:
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
-                Resource: !Ref RDSArn
+                Resource: !Ref RDSProxyArn
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
   BlockStream:
     Type: AWS::SQS::Queue
     Properties:
@@ -360,7 +475,7 @@ Metadata:
         Port: !Ref RDSPort
         Hostname: !Ref RDSHostname
         SecretArn: !Ref RDSSecretArn
-        Arn: !Ref RDSArn
+        Arn: !Ref RDSProxyArn
 Parameters:
   RDSPort:
     Type: Number
@@ -368,11 +483,19 @@ Parameters:
     Type: String
   RDSSecretArn:
     Type: String
-  RDSArn:
+  RDSProxyArn:
     Type: String
   RDSUsername:
     Type: String
   RDSPassword:
     Type: String
   RDSDBName:
+    Type: String
+  VPCSecurityGroup:
+    Type: String
+  VPCSubnet1:
+    Type: String
+  VPCSubnet2:
+    Type: String
+  VPCSubnet3:
     Type: String
