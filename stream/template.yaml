@@ -38,7 +38,7 @@ Resources:
       TracingEnabled: true
       Cors:
         MaxAge: 5
-  TransactionStream:
+  TransactionBlockStream:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 5
@@ -48,23 +48,23 @@ Resources:
         KeyId: alias/aws/kinesis
       StreamModeDetails:
         StreamMode: PROVISIONED
-  TransactionPublisher:
+  TransactionBlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
       Description: !Sub
         - Stack ${AWS::StackName} Function ${ResourceName}
-        - ResourceName: TransactionPublisher
-      CodeUri: src/TransactionPublisher
+        - ResourceName: TransactionBlockPublisher
+      CodeUri: src/TransactionBlockPublisher
       Handler: handler.handler
       Runtime: python3.12
       MemorySize: 128
       Timeout: 60
       Tracing: Active
       Events:
-        TransactionStream:
+        TransactionBlockStream:
           Type: Kinesis
           Properties:
-            Stream: !GetAtt TransactionStream.Arn
+            Stream: !GetAtt TransactionBlockStream.Arn
             StartingPosition: TRIM_HORIZON
             BatchSize: 1
       Environment:
@@ -78,7 +78,7 @@ Resources:
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
-      Role: !GetAtt TransactionPublisherRole.Arn
+      Role: !GetAtt TransactionBlockPublisherRole.Arn
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
@@ -86,12 +86,12 @@ Resources:
           - !Ref VPCSubnet1
           - !Ref VPCSubnet2
           - !Ref VPCSubnet3
-  TransactionPublisherLogGroup:
+  TransactionBlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
     Properties:
-      LogGroupName: !Sub /aws/lambda/${TransactionPublisher}
-  TransactionPublisherRole:
+      LogGroupName: !Sub /aws/lambda/${TransactionBlockPublisher}
+  TransactionBlockPublisherRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -102,7 +102,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: TransactionPublisherRolePolicy
+        - PolicyName: TransactionBlockPublisherRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -111,93 +111,7 @@ Resources:
                   - kinesis:DescribeStream
                   - kinesis:GetShardIterator
                   - kinesis:GetRecords
-                Resource: !GetAtt TransactionStream.Arn
-              - Effect: Allow
-                Action:
-                  - rds-data:ExecuteStatement
-                Resource: !Ref RDSProxyArn
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource: !Ref RDSSecretArn
-              - Effect: Allow
-                Action:
-                  - ec2:CreateNetworkInterface
-                  - ec2:DescribeNetworkInterfaces
-                  - ec2:DeleteNetworkInterface
-                  - ec2:AttachNetworkInterface
-                Resource: '*'
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - arn:aws:logs:*:*:*
-
-  BlockPublisher:
-    Type: AWS::Serverless::Function
-    Properties:
-      Description: !Sub
-        - Stack ${AWS::StackName} Function ${ResourceName}
-        - ResourceName: BlockPublisher
-      CodeUri: src/BlockPublisher
-      Handler: handler.handler
-      Runtime: python3.12
-      MemorySize: 128
-      Timeout: 60
-      Tracing: Active
-      Environment:
-        Variables:
-          RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
-          RDS_SECRETARN: !Ref RDSSecretArn
-          RDS_USERNAME: !Ref RDSUsername
-          RDS_PASSWORD: !Ref RDSPassword
-          RDS_DB_NAME: !Ref RDSDBName
-      Policies:
-        - AWSSecretsManagerGetSecretValuePolicy:
-            SecretArn: !Ref RDSSecretArn
-      Events:
-        BlockStream:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt BlockStream.Arn
-            BatchSize: 1
-      Role: !GetAtt BlockPublisherRole.Arn
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
-  BlockPublisherLogGroup:
-    Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${BlockPublisher}
-  BlockPublisherRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: BlockPublisherRolePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - sqs:DeleteMessage
-                  - sqs:ReceiveMessage
-                  - sqs:GetQueueAttributes
-                Resource: !GetAtt BlockStream.Arn
+                Resource: !GetAtt TransactionBlockStream.Arn
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
@@ -460,13 +374,6 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - arn:aws:logs:*:*:*
-  BlockStream:
-    Type: AWS::SQS::Queue
-    Properties:
-      FifoQueue: true
-      ContentBasedDeduplication: true
-      MessageRetentionPeriod: 86400
-      VisibilityTimeout: 60
 Metadata:
   AWS::Composer::ExternalResources:
     RDS:
