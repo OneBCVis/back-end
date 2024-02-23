@@ -70,10 +70,10 @@ def get_stats(event):
                 "Content-Type": "application/json"
             },
             "body": json.dumps({
-                "transaction_count": result_transaction[0],
-                "block_count": result_block[0],
-                "total_tx_amount": result_total_transactions_amount[0],
-                "miners" : result_miners[0]
+                "transaction_count": result_transaction[0][0],
+                "block_count": result_block[0][0],
+                "total_tx_amount": int(result_total_transactions_amount[0][0]),
+                "miners": result_miners
             })
         }
 
