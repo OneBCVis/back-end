@@ -3,6 +3,8 @@
 
 # Testing
 test-data/
+venv/
+__pycache__/
 
 # Deployment configuration
 samconfig.toml
