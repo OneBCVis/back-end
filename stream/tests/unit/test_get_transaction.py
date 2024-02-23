@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock, call
 
 from tests.unit.events.get_txn import get_txn
 
+
 data = get_txn()
 mock_event = data["event"]
 mock_txn = data["txn"]
