@@ -78,5 +78,5 @@ create table if not exists block_txn
 create table if not exists txn_type
 (
     type       int(4)      not null,
-    name       varchar(32) not null,
+    name       varchar(32) not null
 );
