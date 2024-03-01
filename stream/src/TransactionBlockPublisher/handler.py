@@ -35,9 +35,11 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 try:
-    conn = pymysql.connect(host=rds_host, user=user_name, passwd=password, db=db_name, connect_timeout=5)
+    conn = pymysql.connect(host=rds_host, user=user_name,
+                           passwd=password, db=db_name, connect_timeout=5)
 except pymysql.MySQLError as e:
-    logger.error("ERROR: Unexpected error: Could not connect to MySQL instance.")
+    logger.error(
+        "ERROR: Unexpected error: Could not connect to MySQL instance.")
     logger.error(e)
     exit(1)
 
@@ -54,7 +56,8 @@ def process_records(records):
             for record in records:
                 message, message_type, message_data = None, None, None
                 try:
-                    message = json.loads(base64.b64decode(record["kinesis"]["data"]))
+                    message = json.loads(
+                        base64.b64decode(record["kinesis"]["data"]))
                     message_type = message['type']
                     message_data = message['data']
                 except Exception as e:
@@ -76,8 +79,17 @@ def process_records(records):
 
 def process_transaction(txn, cur):
     try:
-        sql_insert_txn = "INSERT INTO transaction (txn_hash, status, amount) VALUES (%s, %s, %s)"
-        cur.execute(sql_insert_txn, (txn["Hash"], txn["Status"], txn["Amount"]))
+        sql_insert_txn = """INSERT INTO transaction (txn_hash, status, amount, type, nonce, fee)
+                            VALUES (%s, %s, %s, %s, %s, %s)"""
+
+        cur.execute(sql_insert_txn, (
+            txn["Hash"],
+            txn["Status"],
+            txn["Amount"],
+            txn["Type"],
+            txn["Nonce"],
+            txn["Fee"]
+        ))
 
         for sender in txn["Sender"]:
             sql_insert_sender = "INSERT INTO txn_sender (txn_hash, sender_key) VALUES (%s, %s)"
@@ -91,7 +103,8 @@ def process_transaction(txn, cur):
         conn.commit()
     except pymysql.IntegrityError as e:
         if e.args[0] == 1062:
-            logger.info(f"INFO: Duplicate transaction with hash: {txn['Hash']}. Skipping insert")
+            logger.info(
+                "INFO: Duplicate transaction with hash: %s. Skipping insert".format(txn['Hash']))
             conn.rollback()
         else:
             logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
@@ -106,8 +119,19 @@ def process_transaction(txn, cur):
 
 def process_block(block, cur):
     try:
-        sql_insert_block = "INSERT INTO block (block_hash, previous_block_hash, timestamp, miner) VALUES (%s, %s, %s, %s)"
-        cur.execute(sql_insert_block, (block["Hash"], block["PreviousBlockHash"], block["Timestamp"], block["Miner"]))
+        sql_insert_block = """INSERT INTO block
+                                (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+
+        cur.execute(sql_insert_block, (
+            block["Hash"],
+            block["PreviousBlockHash"],
+            block["Height"],
+            block["Nonce"],
+            block["Difficulty"],
+            block["Miner"],
+            block["Timestamp"]
+        ))
 
         for txn in block["Transactions"]:
             sql_insert_txn = "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)"
@@ -115,11 +139,27 @@ def process_block(block, cur):
             sql_update_txn_status = "UPDATE transaction SET status = %s WHERE txn_hash = %s"
             cur.execute(sql_update_txn_status, ("APPROVED", txn))
 
+        for uncle in block["Uncles"]:
+            sql_insert_uncle = "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)"
+            cur.execute(sql_insert_uncle, (uncle, block["Hash"]))
+
+        for offChainData in block["Sidecar"]:
+            sql_insert_off_chain = """INSERT INTO off_chain_data
+                                        (block_hash, id, transaction_id, size)
+                                        VALUES (%s, %s, %s, %s)"""
+            cur.execute(sql_insert_off_chain, (
+                block["Hash"],
+                offChainData["ID"],
+                offChainData["TransactionID"],
+                offChainData["Size"]
+            ))
+
         logger.info(f"INFO: Inserted block with hash: {block['Hash']}")
         conn.commit()
     except pymysql.IntegrityError as e:
         if (e.args[0] == 1062):
-            logger.info(f"INFO: Duplicate block with hash: {block['Hash']}. Skipping insert")
+            logger.info(
+                "INFO: Duplicate block with hash: %s. Skipping insert".format(block['Hash']))
         else:
             logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
             conn.rollback()
