@@ -37,7 +37,8 @@ def test_lambda_handler():
 
         assert rds_conn_mock.cursor.called
         assert mock_execute.called
-        assert mock_execute.call_args[0][0] == "SELECT t.txn_hash, t.status, t.amount FROM transaction t WHERE t.txn_hash = %s"
+        assert mock_execute.call_args[0][0] == """SELECT t.txn_hash, t.status, t.amount, t.type, t.nonce, t.fee
+                                    FROM transaction t WHERE t.txn_hash = %s"""
         assert mock_execute.call_args[0][1] == mock_txn["txn_hash"]
         assert mock_cursor.fetchall.called
 

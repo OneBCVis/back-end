@@ -33,7 +33,8 @@ def get_data_from_rds(event):
 
         logger.info("SUCCESS: Able to connect to RDS MySQL instance")
 
-        query_get_transaction = "SELECT t.txn_hash, t.status, t.amount FROM transaction t WHERE t.txn_hash = %s"
+        query_get_transaction = """SELECT t.txn_hash, t.status, t.amount, t.type, t.nonce, t.fee
+                                    FROM transaction t WHERE t.txn_hash = %s"""
         cursor.execute(query_get_transaction, (txn_hash))
         result_transaction = cursor.fetchall()
 
