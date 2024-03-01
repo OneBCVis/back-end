@@ -109,7 +109,7 @@ def assert_block_inserted(block):
     for offChainData in block["Sidecar"]:
         calls.append(call(
             """INSERT INTO off_chain_data
-                                        (block_hash, id, transaction_id, size)
+                                        (block_hash, id, txn_id, size)
                                         VALUES (%s, %s, %s, %s)""",
             (
                 block["Hash"],

@@ -104,7 +104,7 @@ def process_transaction(txn, cur):
     except pymysql.IntegrityError as e:
         if e.args[0] == 1062:
             logger.info(
-                "INFO: Duplicate transaction with hash: %s. Skipping insert".format(txn['Hash']))
+                "INFO: Duplicate transaction with hash: {}. Skipping insert".format(txn['Hash']))
             conn.rollback()
         else:
             logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
@@ -145,7 +145,7 @@ def process_block(block, cur):
 
         for offChainData in block["Sidecar"]:
             sql_insert_off_chain = """INSERT INTO off_chain_data
-                                        (block_hash, id, transaction_id, size)
+                                        (block_hash, id, txn_id, size)
                                         VALUES (%s, %s, %s, %s)"""
             cur.execute(sql_insert_off_chain, (
                 block["Hash"],
@@ -159,7 +159,7 @@ def process_block(block, cur):
     except pymysql.IntegrityError as e:
         if (e.args[0] == 1062):
             logger.info(
-                "INFO: Duplicate block with hash: %s. Skipping insert".format(block['Hash']))
+                "INFO: Duplicate block with hash: {}. Skipping insert".format(block['Hash']))
         else:
             logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
             conn.rollback()
