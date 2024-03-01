@@ -21,7 +21,10 @@ mock_cursor.execute = mock_execute
 mock_cursor.fetchall.return_value = [(
     mock_txn_body["txn_hash"],
     mock_txn_body["status"],
-    mock_txn_body["amount"]
+    mock_txn_body["amount"],
+    mock_txn_body["type"],
+    mock_txn_body["nonce"],
+    mock_txn_body["fee"]
 )]
 
 
