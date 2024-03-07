@@ -69,7 +69,7 @@ def test_lambda_handler():
                     "txn_hashes": mock_blocks[0][2].split(","),
                     "uncle_hashes": mock_blocks[0][3].split(","),
                     "off_chain_data_ids": mock_blocks[0][4].split(","),
-                    "off_chain_data_sizes": mock_blocks[0][5].split(",")
+                    "off_chain_data_sizes": list(map(int, mock_blocks[0][5].split(",")))
                 }
             ]
         }
