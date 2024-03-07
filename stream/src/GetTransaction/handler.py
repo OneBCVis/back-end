@@ -14,6 +14,7 @@ db_name = os.environ['RDS_DB_NAME']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
 def handler(event, context):
     # Log the event argument for debugging and for use in local development.
     return get_data_from_rds(event)
@@ -25,13 +26,15 @@ def get_data_from_rds(event):
         txn_hash = body['txn_hash']
 
         # Connect to the database
-        conn = pymysql.connect(host=rds_proxy_host, user=user_name, passwd=password, db=db_name, connect_timeout=5)
+        conn = pymysql.connect(host=rds_proxy_host, user=user_name,
+                               passwd=password, db=db_name, connect_timeout=5)
 
         cursor = conn.cursor()
 
         logger.info("SUCCESS: Able to connect to RDS MySQL instance")
 
-        query_get_transaction = "SELECT t.txn_hash, t.status, t.amount FROM transaction t WHERE t.txn_hash = %s"
+        query_get_transaction = """SELECT t.txn_hash, t.status, t.amount, t.type, t.nonce, t.fee
+                                    FROM transaction t WHERE t.txn_hash = %s"""
         cursor.execute(query_get_transaction, (txn_hash))
         result_transaction = cursor.fetchall()
 
@@ -47,13 +50,16 @@ def get_data_from_rds(event):
             "body": json.dumps({
                 "txn_hash": result_transaction[0][0],
                 "status": result_transaction[0][1],
-                "amount": result_transaction[0][2]
+                "amount": result_transaction[0][2],
+                "type": result_transaction[0][3],
+                "nonce": result_transaction[0][4],
+                "fee": result_transaction[0][5]
             })
         }
 
     except pymysql.MySQLError as e:
         logger.error(f"ERROR: MySQL Error occurred: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -65,7 +71,7 @@ def get_data_from_rds(event):
 
     except Exception as e:
         logger.error(f"ERROR: Error occurred: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"

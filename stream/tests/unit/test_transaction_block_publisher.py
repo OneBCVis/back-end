@@ -52,11 +52,15 @@ def test_lambda_handler(kinesis_event):
 
 def assert_transaction_inserted(txn):
     calls.append(call(
-        "INSERT INTO transaction (txn_hash, status, amount) VALUES (%s, %s, %s)",
+        """INSERT INTO transaction (txn_hash, status, amount, type, nonce, fee)
+                            VALUES (%s, %s, %s, %s, %s, %s)""",
         (
             txn["Hash"],
             txn["Status"],
-            txn["Amount"]
+            txn["Amount"],
+            txn["Type"],
+            txn["Nonce"],
+            txn["Fee"]
         )
     ))
 
@@ -79,14 +83,41 @@ def assert_transaction_inserted(txn):
 
 def assert_block_inserted(block):
     calls.append(call(
-        "INSERT INTO block (block_hash, previous_block_hash, timestamp, miner) VALUES (%s, %s, %s, %s)",
+        """INSERT INTO block
+                                (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
         (
             block["Hash"],
             block["PreviousBlockHash"],
-            block["Timestamp"],
-            block["Miner"]
+            block["Height"],
+            block["Nonce"],
+            block["Difficulty"],
+            block["Miner"],
+            block["Timestamp"]
         )
     ))
+
+    for uncle in block["Uncles"]:
+        calls.append(call(
+            "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)",
+            (
+                uncle,
+                block["Hash"]
+            )
+        ))
+
+    for offChainData in block["Sidecar"]:
+        calls.append(call(
+            """INSERT INTO off_chain_data
+                                        (block_hash, id, txn_id, size)
+                                        VALUES (%s, %s, %s, %s)""",
+            (
+                block["Hash"],
+                offChainData["ID"],
+                offChainData["TransactionID"],
+                offChainData["Size"]
+            )
+        ))
 
 
 def assert_transaction_update(txn, block):

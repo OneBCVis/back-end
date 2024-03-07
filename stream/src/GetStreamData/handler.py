@@ -26,25 +26,69 @@ def get_data_from_rds(event):
         body = json.loads(event['body'])
         start_timestamp = body['start_time']
         end_timestamp = body['end_time']
-        
+
         # Connect to the database
-        conn = pymysql.connect(host=rds_proxy_host, user=user_name, passwd=password, db=db_name, connect_timeout=5)
-        
+        conn = pymysql.connect(host=rds_proxy_host, user=user_name,
+                               passwd=password, db=db_name, connect_timeout=5)
+
         cursor = conn.cursor()
-        
+
         logger.info("SUCCESS: Able to connect to RDS MySQL instance")
 
-        query_get_transactions = "SELECT t.txn_hash, t.status, t.amount FROM transaction t WHERE t.insert_time >= %s AND t.insert_time  < %s"
-        cursor.execute(query_get_transactions, (start_timestamp, end_timestamp))
+        query_get_transactions = """
+            SELECT t.txn_hash, t.status, t.amount, t.type, t.fee
+            FROM transaction t
+            WHERE t.insert_time >= %s AND t.insert_time  < %s"""
+        cursor.execute(query_get_transactions,
+                       (start_timestamp, end_timestamp))
         result_transactions = cursor.fetchall()
-        
-        query_get_blocks = "SELECT b.block_hash, b.previous_block_hash, GROUP_CONCAT(bt.txn_hash) FROM block b JOIN block_txn bt ON b.block_hash = bt.block_hash WHERE b.insert_time >= %s AND b.insert_time < %s GROUP BY b.block_hash"
+
+        query_get_blocks = """
+            SELECT
+                b.block_hash,
+                b.previous_block_hash,
+                bt.txn_hashes,
+                u.uncle_hashes,
+                ocd.off_chain_data_ids,
+                ocd.off_chain_data_sizes
+            FROM
+                block b
+            LEFT JOIN (
+                SELECT
+                    block_hash,
+                    GROUP_CONCAT(txn_hash) txn_hashes
+                FROM
+                    block_txn
+                GROUP BY
+                    block_hash
+            ) bt ON b.block_hash = bt.block_hash
+            LEFT JOIN (
+                SELECT
+                    block_hash,
+                    GROUP_CONCAT(uncle_hash) uncle_hashes
+                FROM
+                    uncle
+                GROUP BY
+                    block_hash
+            ) u ON b.block_hash = u.block_hash
+            LEFT JOIN (
+                SELECT
+                    block_hash,
+                    GROUP_CONCAT(id) off_chain_data_ids,
+                    GROUP_CONCAT(size) off_chain_data_sizes
+                FROM
+                    off_chain_data
+                GROUP BY
+                    block_hash
+            ) ocd ON b.block_hash = ocd.block_hash
+            WHERE
+                b.insert_time >= %s AND b.insert_time < %s"""
         cursor.execute(query_get_blocks, (start_timestamp, end_timestamp))
         result_blocks = cursor.fetchall()
 
         cursor.close()
         conn.close()
-        
+
         response = {
             "statusCode": 200,
             "headers": {
@@ -58,7 +102,7 @@ def get_data_from_rds(event):
 
     except pymysql.MySQLError as e:
         logger.error(f"ERROR: MySQL Error occurred: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -70,7 +114,7 @@ def get_data_from_rds(event):
 
     except Exception as e:
         logger.error(f"ERROR: Internal Server Error: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -89,7 +133,9 @@ def get_transaction_response(result_transactions):
         txn_dict = {
             "txn_hash": txn[0],
             "status": txn[1],
-            "amount": txn[2]
+            "amount": txn[2],
+            "type": txn[3],
+            "fee": txn[4]
         }
         transaction_response.append(txn_dict)
 
@@ -102,7 +148,10 @@ def get_block_response(result_blocks):
         block_dict = {
             "block_hash": block[0],
             "previous_block_hash": block[1],
-            "txn_hashes": block[2].split(",")
+            "txn_hashes": block[2].split(","),
+            "uncle_hashes": block[3].split(","),
+            "off_chain_data_ids": block[4].split(","),
+            "off_chain_data_sizes": block[5].split(",")
         }
         block_response.append(block_dict)
 

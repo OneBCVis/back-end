@@ -80,7 +80,10 @@ mock_txn = {
 mock_txn_body = {
     "txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74",
     "status": "PENDING",
-    "amount": 1
+    "amount": 1,
+    "type": 3,
+    "nonce": 4726,
+    "fee": 1
 }
 
 
