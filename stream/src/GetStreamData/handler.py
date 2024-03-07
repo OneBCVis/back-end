@@ -148,10 +148,10 @@ def get_block_response(result_blocks):
         block_dict = {
             "block_hash": block[0],
             "previous_block_hash": block[1],
-            "txn_hashes": block[2].split(","),
-            "uncle_hashes": block[3].split(","),
-            "off_chain_data_ids": block[4].split(","),
-            "off_chain_data_sizes": block[5].split(",")
+            "txn_hashes": block[2].split(",") if block[2] else [],
+            "uncle_hashes": block[3].split(",") if block[3] else [],
+            "off_chain_data_ids": block[4].split(",") if block[4] else [],
+            "off_chain_data_sizes": list(map(int, block[5].split(","))) if block[5] else []
         }
         block_response.append(block_dict)
 
