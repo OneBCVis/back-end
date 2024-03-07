@@ -77,17 +77,23 @@ mock_txns = [
     (
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74",
         "PENDING",
+        1,
+        2,
         1
     ),
     (
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75",
         "APPROVED",
-        2
+        2,
+        1,
+        1
     ),
     (
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76",
         "APPROVED",
-        0
+        0,
+        3,
+        2
     )
 ]
 
@@ -95,7 +101,10 @@ mock_blocks = [
     (
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c77",
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c78",
-        "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75,0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76"
+        "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75,0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76",
+        "0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c496d8597f74125896,0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c496d8597f8e874856",
+        "0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c4803894599629,0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c4803895742157",
+        "1024,2048"
     )
 ]
 
