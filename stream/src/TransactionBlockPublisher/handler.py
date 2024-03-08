@@ -3,6 +3,7 @@ import json
 import logging
 import pymysql
 import os
+import boto3
 
 
 # Schema of a transaction:
@@ -23,23 +24,30 @@ import os
 #     Transactions: List<String>
 # }
 
-# TODO: Use AWS Secrets Manager to store credentials
-
-user_name = os.environ['RDS_USERNAME']
-password = os.environ['RDS_PASSWORD']
+rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
 port = os.environ['RDS_PORT']
+region = os.environ['RDS_REGION']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 try:
+    client = boto3.client(service_name='secretsmanager', region_name=region)
+    response = client.get_secret_value(SecretId=rds_secret_arn)
+    secret = json.loads(response["SecretString"])
+    user_name = secret["username"]
+    password = secret["password"]
     conn = pymysql.connect(host=rds_host, user=user_name,
                            passwd=password, db=db_name, connect_timeout=5)
 except pymysql.MySQLError as e:
     logger.error(
         "ERROR: Unexpected error: Could not connect to MySQL instance.")
+    logger.error(e)
+    exit(1)
+except Exception as e:
+    logger.error("ERROR: Unexpected error.")
     logger.error(e)
     exit(1)
 

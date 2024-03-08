@@ -3,14 +3,14 @@ import pymysql
 from datetime import datetime
 import logging
 import os
+import boto3
 
 
 # RDS settings
-# TODO: Use AWS Secrets Manager to store credentials
-user_name = os.environ['RDS_USERNAME']
-password = os.environ['RDS_PASSWORD']
+rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
+region = os.environ['RDS_REGION']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -26,6 +26,13 @@ def get_data_from_rds(event):
         body = json.loads(event['body'])
         start_timestamp = body['start_time']
         end_timestamp = body['end_time']
+
+        client = boto3.client(
+            service_name='secretsmanager', region_name=region)
+        response = client.get_secret_value(SecretId=rds_secret_arn)
+        secret = json.loads(response["SecretString"])
+        user_name = secret["username"]
+        password = secret["password"]
 
         # Connect to the database
         conn = pymysql.connect(host=rds_proxy_host, user=user_name,

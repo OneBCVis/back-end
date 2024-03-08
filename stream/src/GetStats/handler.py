@@ -2,19 +2,19 @@ import json
 import pymysql
 import logging
 import os
-import base64
+import boto3
 from datetime import datetime, timedelta
 
 
 # RDS settings
-# TODO: Use AWS Secrets Manager to store credentials
-user_name = os.environ['RDS_USERNAME']
-password = os.environ['RDS_PASSWORD']
+rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
+region = os.environ['RDS_REGION']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
 
 def handler(event, context):
     # Log the event argument for debugging and for use in local development.
@@ -27,19 +27,27 @@ def get_stats(event):
         start_time = body['start_time']
 
         # get timestamp 1h back
-        start_time_obj = datetime.strptime(start_time, '%Y-%m-%d %H.%M.%S')
-        end_time_obj  = start_time_obj - timedelta(hours=1)
-        end_time = end_time_obj.strftime('%Y-%m-%d %H.%M.%S') 
-        
+        start_time_obj = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+        end_time_obj = start_time_obj - timedelta(hours=1)
+        end_time = end_time_obj.strftime('%Y-%m-%d %H:%M:%S')
+
+        client = boto3.client(
+            service_name='secretsmanager', region_name=region)
+        response = client.get_secret_value(SecretId=rds_secret_arn)
+        secret = json.loads(response["SecretString"])
+        user_name = secret["username"]
+        password = secret["password"]
+
         # Connect to the database
-        conn = pymysql.connect(host=rds_proxy_host, user=user_name, passwd=password, db=db_name, connect_timeout=5)
+        conn = pymysql.connect(host=rds_proxy_host, user=user_name,
+                               passwd=password, db=db_name, connect_timeout=5)
 
         cursor = conn.cursor()
 
         logger.info("SUCCESS: Able to connect to RDS MySQL instance")
 
         # Numer of transactions in last hour
-        query_transactions_in_last_hour= "SELECT COUNT(t.txn_hash) FROM transaction t WHERE t.insert_time >= %s AND t.insert_time <= %s"
+        query_transactions_in_last_hour = "SELECT COUNT(t.txn_hash) FROM transaction t WHERE t.insert_time >= %s AND t.insert_time <= %s"
         cursor.execute(query_transactions_in_last_hour, (end_time, start_time))
         result_transaction = cursor.fetchall()
 
@@ -79,7 +87,7 @@ def get_stats(event):
 
     except pymysql.MySQLError as e:
         logger.error(f"ERROR: MySQL Error occurred: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -91,7 +99,7 @@ def get_stats(event):
 
     except Exception as e:
         logger.error(f"ERROR: Error occurred: {e}")
-        response =  {
+        response = {
             "statusCode": 500,
             "headers": {
                 "Content-Type": "application/json"
@@ -102,5 +110,3 @@ def get_stats(event):
         }
 
     return response
-
-
