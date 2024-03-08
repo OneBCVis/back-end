@@ -89,6 +89,7 @@ Resources:
   TransactionBlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${TransactionBlockPublisher}
   TransactionBlockPublisherRole:
@@ -175,6 +176,7 @@ Resources:
   GetStreamDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetStreamData}
   GetStreamDataRole:
@@ -255,6 +257,7 @@ Resources:
   GetStatsLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetStats}
   GetStatsRole:
@@ -335,6 +338,7 @@ Resources:
   GetTransactionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetTransaction}
   GetTransactionRole:
@@ -406,3 +410,13 @@ Parameters:
     Type: String
   VPCSubnet3:
     Type: String
+Outputs:
+  TransactionBlockStreamArn:
+    Description: The ARN of the Kinesis stream
+    Value: !GetAtt TransactionBlockStream.Arn
+  TransactionBlockStreamName:
+    Description: The name of the Kinesis stream
+    Value: !Ref TransactionBlockStream
+  ApiEndpoint:
+    Description: The endpoint URL for the backend API
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
