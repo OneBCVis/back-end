@@ -1,0 +1,5 @@
+pytest
+pytest-mock
+pytest-env
+pymysql
+boto3
