@@ -72,9 +72,8 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
-          RDS_USERNAME: !Ref RDSUsername
-          RDS_PASSWORD: !Ref RDSPassword
           RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -159,9 +158,8 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
-          RDS_USERNAME: !Ref RDSUsername
-          RDS_PASSWORD: !Ref RDSPassword
           RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -240,9 +238,8 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
-          RDS_USERNAME: !Ref RDSUsername
-          RDS_PASSWORD: !Ref RDSPassword
           RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -314,9 +311,8 @@ Resources:
           RDS_PORT: !Ref RDSPort
           RDS_HOSTNAME: !Ref RDSHostname
           RDS_SECRETARN: !Ref RDSSecretArn
-          RDS_USERNAME: !Ref RDSUsername
-          RDS_PASSWORD: !Ref RDSPassword
           RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -395,10 +391,6 @@ Parameters:
   RDSSecretArn:
     Type: String
   RDSProxyArn:
-    Type: String
-  RDSUsername:
-    Type: String
-  RDSPassword:
     Type: String
   RDSDBName:
     Type: String

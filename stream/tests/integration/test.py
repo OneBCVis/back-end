@@ -156,7 +156,7 @@ class Test(TestCase):
 
     def read_stats_data(self) -> None:
         data = '{"start_time": "' + \
-            datetime.datetime.now().strftime("%Y-%m-%d %H.%M.%S") + '"}'
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '"}'
         stats_endpoint = self.api_endpoint + "stats/"
         response = requests.request(
             method='GET', url=stats_endpoint, data=data)
