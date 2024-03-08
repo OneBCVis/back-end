@@ -1,5 +1,5 @@
 mock_event = {
-    "body": "{ \"start_time\": \"2024-02-23 22.13.29\" }",
+    "body": "{ \"start_time\": \"2024-02-23 22:13:29\" }",
     "headers": {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -77,8 +77,8 @@ mock_event = {
 def get_stats():
     return {
         "event": mock_event,
-        "start_time": "2024-02-23 22.13.29",
-        "end_time": "2024-02-23 21.13.29",
+        "start_time": "2024-02-23 22:13:29",
+        "end_time": "2024-02-23 21:13:29",
         "transaction_count": 357481,
         "block_count": 811,
         "total_tx_amount": 269700,

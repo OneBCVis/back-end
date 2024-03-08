@@ -26,11 +26,16 @@ mock_cursor.fetchall.return_value = [(
     mock_txn_body["nonce"],
     mock_txn_body["fee"]
 )]
+mock_client = MagicMock()
+mock_client.get_secret_value.return_value = {
+    "SecretString": '{"username": "XXXX", "password": "XXXX"}'
+}
 
 
 def test_lambda_handler():
-    with patch("pymysql.connect") as rds_mock:
+    with patch("pymysql.connect") as rds_mock, patch("boto3.client") as boto3_mock:
         rds_mock.return_value = rds_conn_mock
+        boto3_mock.return_value = mock_client
 
         from src.GetTransaction.handler import handler
         response = handler(mock_event, None)
