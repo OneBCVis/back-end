@@ -65,7 +65,8 @@ class Test(TestCase):
         self.id_postfix = "_" + str(uuid4())
 
     def feed_data(self) -> None:
-        self.start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.start_time = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S.%f")[:-3]
         self.total_txn_amount = 0
         self.miners = {}
         for _ in range(100):
@@ -78,7 +79,8 @@ class Test(TestCase):
             else:
                 test_event, partition_key = generate_random_block()
                 self.blocks.append(test_event["data"])
-                self.approved_txns += test_event["data"]["Transactions"].copy()
+                self.approved_txns += map(
+                    lambda txn: txn["Hash"], test_event["data"]["Transactions"].copy())
                 self.miners[test_event["data"]["Miner"]] = self.miners.get(
                     test_event["data"]["Miner"], 0) + 1
             self.kinesis_client.put_record(
@@ -89,7 +91,8 @@ class Test(TestCase):
             )
             time.sleep(0.1)
         time.sleep(30)
-        self.end_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.end_time = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     def read_stream_data(self) -> None:
         data = '{"start_time": "' + self.start_time + \
@@ -127,7 +130,7 @@ class Test(TestCase):
             self.assertEqual(
                 orig_block["PreviousBlockHash"], block["previous_block_hash"])
             for txn in orig_block["Transactions"]:
-                self.assertIn(txn, block["txn_hashes"])
+                self.assertIn(txn["Hash"], block["txn_hashes"])
             for uncle in orig_block["Uncles"]:
                 self.assertIn(uncle, block["uncle_hashes"])
             for sidecar in orig_block["Sidecar"]:

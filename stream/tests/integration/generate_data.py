@@ -16,10 +16,11 @@ def generate_random_txn():
     txn["Type"] = random.choice([1, 2, 3])
     txn["Nonce"] = random.randint(0, 999999)
     txn["Fee"] = random.randint(1, 9)
-    txn["Sender"] = ["0x" + ''.join(random.choices('0123456789abcdef', k=16))]
+    txn["Sender"] = [
+        ["0x" + ''.join(random.choices('0123456789abcdef', k=16)), txn["Amount"]]]
     txn["Receiver"] = [
-        "0x" + ''.join(random.choices('0123456789abcdef', k=16))]
-    txn_pool.append(txn["Hash"])
+        ["0x" + ''.join(random.choices('0123456789abcdef', k=16)), txn["Amount"]]]
+    txn_pool.append(txn)
     message = {}
     message["type"] = "TRANSACTION"
     message["data"] = txn
@@ -50,7 +51,7 @@ def generate_random_block():
                 ''.join(random.choices('0123456789abcdef', k=16))
             off_chain_data["Size"] = random.randint(1024, 2048)
             off_chain_data["TransactionID"] = random.choice(
-                block["Transactions"])
+                block["Transactions"])["Hash"]
             block["Sidecar"].append(off_chain_data)
     block["OffChainDataSizes"] = [random.randint(1024, 2048) for _ in range(2)]
     prev_block_hash = block["Hash"]

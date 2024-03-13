@@ -39,32 +39,33 @@ region = os.environ['RDS_REGION']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-try:
-    client = boto3.client(service_name='secretsmanager', region_name=region)
-    response = client.get_secret_value(SecretId=rds_secret_arn)
-    secret = json.loads(response["SecretString"])
-    user_name = secret["username"]
-    password = secret["password"]
-    conn = pymysql.connect(host=rds_host, user=user_name,
-                           passwd=password, db=db_name, connect_timeout=5)
-except pymysql.MySQLError as e:
-    logger.error(
-        "ERROR: Unexpected error: Could not connect to MySQL instance.")
-    logger.error(e)
-    exit(1)
-except Exception as e:
-    logger.error("ERROR: Unexpected error.")
-    logger.error(e)
-    exit(1)
-
 
 def handler(event, context):
-    process_records(event["Records"])
+    try:
+        client = boto3.client(
+            service_name='secretsmanager', region_name=region)
+        response = client.get_secret_value(SecretId=rds_secret_arn)
+        secret = json.loads(response["SecretString"])
+        user_name = secret["username"]
+        password = secret["password"]
+        conn = pymysql.connect(host=rds_host, user=user_name,
+                               passwd=password, db=db_name, connect_timeout=5)
+    except pymysql.MySQLError as e:
+        logger.error(
+            "ERROR: Unexpected error: Could not connect to MySQL instance.")
+        logger.error(e)
+        exit(1)
+    except Exception as e:
+        logger.error("ERROR: Unexpected error.")
+        logger.error(e)
+        exit(1)
+
+    process_records(event["Records"], conn)
 
     return {}
 
 
-def process_records(records):
+def process_records(records, conn):
     try:
         with conn.cursor() as cur:
             for record in records:
@@ -78,9 +79,9 @@ def process_records(records):
                     logger.error(f"ERROR: Could not decode message: {e}")
                     continue
                 if message_type == 'TRANSACTION':
-                    process_transaction(message_data, cur)
+                    process_transaction(message_data, conn, cur)
                 elif message_type == 'BLOCK':
-                    process_block(message_data, cur)
+                    process_block(message_data, conn, cur)
                 else:
                     logger.error(f"ERROR: Unknown record type: {message_type}")
         conn.close()
@@ -91,7 +92,7 @@ def process_records(records):
             conn.close()
 
 
-def process_transaction(txn, cur, is_full=False):
+def process_transaction(txn, conn, cur, is_full=False):
     try:
         sql_insert_txn = "call insert_transaction(%s, %s, %s, %s, %s, %s, %s, %s, %s, @result)"
 
@@ -132,10 +133,10 @@ def process_transaction(txn, cur, is_full=False):
         conn.rollback()
 
 
-def process_block(block, cur):
+def process_block(block, conn, cur):
     try:
         for txn in block["Transactions"]:
-            process_transaction(txn, cur, True)
+            process_transaction(txn, conn, cur, True)
 
         sql_insert_block = """INSERT INTO block
                                 (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
