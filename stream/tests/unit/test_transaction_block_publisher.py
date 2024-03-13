@@ -1,6 +1,7 @@
 # test_handler.py
 
 import pytest
+import json
 from unittest.mock import patch, MagicMock, call
 
 from tests.unit.events.new_txn_block import get_new_txn_block
@@ -10,6 +11,8 @@ data = get_new_txn_block()
 mock_event = data["event"]
 mock_transaction_1 = data["transaction_1"]
 mock_transaction_2 = data["transaction_2"]
+duplicate_transaction = data["duplicate_transaction"]
+mock_unpublished_transaction = data["unpublished_transaction"]
 mock_block_1 = data["block_1"]
 
 
@@ -28,6 +31,8 @@ mock_client = MagicMock()
 mock_client.get_secret_value.return_value = {
     "SecretString": '{"username": "XXXX", "password": "XXXX"}'
 }
+mock_cursor.__enter__.return_value.fetchone.side_effect = [
+    (0,), (0,), (2,), (1,), (1,), (0,)]
 calls = []
 
 
@@ -48,42 +53,31 @@ def test_lambda_handler(kinesis_event):
 
         assert_transaction_inserted(mock_transaction_1)
         assert_transaction_inserted(mock_transaction_2)
+        assert_transaction_inserted(duplicate_transaction)
         assert_block_inserted(mock_block_1)
-        assert_transaction_update(mock_transaction_1, mock_block_1)
-        assert_transaction_update(mock_transaction_2, mock_block_1)
+        for txn in mock_block_1["Transactions"]:
+            assert_transaction_update(txn, mock_block_1)
 
         mock_execute.assert_has_calls(calls, any_order=True)
 
 
-def assert_transaction_inserted(txn):
+def assert_transaction_inserted(txn, is_full=False):
     calls.append(call(
-        """INSERT INTO transaction (txn_hash, status, amount, type, nonce, fee)
-                            VALUES (%s, %s, %s, %s, %s, %s)""",
+        "call insert_transaction(%s, %s, %s, %s, %s, %s, %s, %s, %s, @result)",
         (
             txn["Hash"],
             txn["Status"],
             txn["Amount"],
             txn["Type"],
             txn["Nonce"],
-            txn["Fee"]
+            txn["Fee"],
+            json.dumps(txn["Sender"]),
+            json.dumps(txn["Receiver"]),
+            is_full
         )
     ))
 
-    calls.append(call(
-        "INSERT INTO txn_sender (txn_hash, sender_key) VALUES (%s, %s)",
-        (
-            txn["Hash"],
-            txn["Sender"][0]
-        )
-    ))
-
-    calls.append(call(
-        "INSERT INTO txn_receiver (txn_hash, receiver_key) VALUES (%s, %s)",
-        (
-            txn["Hash"],
-            txn["Receiver"][0]
-        )
-    ))
+    calls.append(call("SELECT @result AS result"))
 
 
 def assert_block_inserted(block):
@@ -126,18 +120,12 @@ def assert_block_inserted(block):
 
 
 def assert_transaction_update(txn, block):
+    assert_transaction_inserted(txn, is_full=True)
+
     calls.append(call(
         "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)",
         (
             block["Hash"],
-            txn["Hash"]
-        )
-    ))
-
-    calls.append(call(
-        "UPDATE transaction SET status = %s WHERE txn_hash = %s",
-        (
-            "APPROVED",
             txn["Hash"]
         )
     ))

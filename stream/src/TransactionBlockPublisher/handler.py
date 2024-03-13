@@ -13,15 +13,21 @@ import boto3
 #     Receiver: List<String>
 #     Status: One of { "Pending", "Approved", "Rejected" }
 #     Amount: Integer,
+#     Type: Integer,
+#     Nonce: Integer,
+#     Fee: Integer
 # }
 
 # Schema of a block:
 # {
 #     Hash: String,
 #     PreviousBlockHash: String,
+#     Height: Integer,
+#     Nonce: Integer,
+#     Difficulty: Integer,
 #     Timestamp: String,
 #     Miner: String | "",
-#     Transactions: List<String>
+#     Transactions: List<Transaction>
 # }
 
 rds_secret_arn = os.environ['RDS_SECRETARN']
@@ -85,10 +91,9 @@ def process_records(records):
             conn.close()
 
 
-def process_transaction(txn, cur):
+def process_transaction(txn, cur, is_full=False):
     try:
-        sql_insert_txn = """INSERT INTO transaction (txn_hash, status, amount, type, nonce, fee)
-                            VALUES (%s, %s, %s, %s, %s, %s)"""
+        sql_insert_txn = "call insert_transaction(%s, %s, %s, %s, %s, %s, %s, %s, %s, @result)"
 
         cur.execute(sql_insert_txn, (
             txn["Hash"],
@@ -96,27 +101,29 @@ def process_transaction(txn, cur):
             txn["Amount"],
             txn["Type"],
             txn["Nonce"],
-            txn["Fee"]
+            txn["Fee"],
+            json.dumps(txn["Sender"]),
+            json.dumps(txn["Receiver"]),
+            is_full
         ))
 
-        for sender in txn["Sender"]:
-            sql_insert_sender = "INSERT INTO txn_sender (txn_hash, sender_key) VALUES (%s, %s)"
-            cur.execute(sql_insert_sender, (txn["Hash"], sender))
+        cur.execute("SELECT @result AS result")
+        result = cur.fetchone()[0]
 
-        for receiver in txn["Receiver"]:
-            sql_insert_receiver = "INSERT INTO txn_receiver (txn_hash, receiver_key) VALUES (%s, %s)"
-            cur.execute(sql_insert_receiver, (txn["Hash"], receiver))
-
-        logger.info(f"INFO: Inserted transaction with hash: {txn['Hash']}")
-        conn.commit()
-    except pymysql.IntegrityError as e:
-        if e.args[0] == 1062:
+        if result == 0:
             logger.info(
-                "INFO: Duplicate transaction with hash: {}. Skipping insert".format(txn['Hash']))
-            conn.rollback()
+                f"INFO: Inserted transaction with hash: {txn['Hash']}")
+        elif result == 1:
+            logger.info(
+                f"INFO: Updated transaction with hash: {txn['Hash']}")
+        elif result == 2:
+            logger.info(
+                f"INFO: Duplicate transaction with hash: {txn['Hash']}. Skipping insert")
         else:
-            logger.error(f"ERROR: SQL Integrity Error occurred: {e}")
-            conn.rollback()
+            logger.error(
+                f"ERROR: Could not process transaction: {txn['Hash']}")
+
+        conn.commit()
     except pymysql.MySQLError as e:
         logger.error(f"ERROR: MySQL Error occurred: {e}")
         conn.rollback()
@@ -127,6 +134,9 @@ def process_transaction(txn, cur):
 
 def process_block(block, cur):
     try:
+        for txn in block["Transactions"]:
+            process_transaction(txn, cur, True)
+
         sql_insert_block = """INSERT INTO block
                                 (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s)"""
@@ -143,9 +153,7 @@ def process_block(block, cur):
 
         for txn in block["Transactions"]:
             sql_insert_txn = "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)"
-            cur.execute(sql_insert_txn, (block["Hash"], txn))
-            sql_update_txn_status = "UPDATE transaction SET status = %s WHERE txn_hash = %s"
-            cur.execute(sql_update_txn_status, ("APPROVED", txn))
+            cur.execute(sql_insert_txn, (block["Hash"], txn["Hash"]))
 
         for uncle in block["Uncles"]:
             sql_insert_uncle = "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)"
