@@ -4,9 +4,9 @@ import json
 
 mock_transaction_1 = {
     "Hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74",
-    "Sender": ["0xF475fDC8633D4eF7FB7F82E93424Decc81e20485", "0xF475fDC8633D4eF7FB7F82E93424De892549635866"],
-    "Receiver": ["0xBA12222222228d8Ba445958a75a0704d566BF274", "0xBA12222222228d8Ba445958a75a026658658536988"],
-    "Amount": 1,
+    "Sender": [["0xF475fDC8633D4eF7FB7F82E93424Decc81e20485", 1], ["0xF475fDC8633D4eF7FB7F82E93424De892549635866", 2]],
+    "Receiver": [["0xBA12222222228d8Ba445958a75a0704d566BF274", 2], ["0xBA12222222228d8Ba445958a75a026658658536988", 1]],
+    "Amount": 3,
     "Status": "PENDING",
     "Type": 1,
     "Nonce": 1,
@@ -15,9 +15,9 @@ mock_transaction_1 = {
 
 mock_transaction_2 = {
     "Hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c96",
-    "Sender": ["0xF475fDC8633D4eF7FB7F82E93424Decc81e20471"],
-    "Receiver": ["0xBA12222222228d8Ba445958a75a0704d566BF263"],
-    "Amount": 2,
+    "Sender": [["0xF475fDC8633D4eF7FB7F82E93424Decc81e20471", 1]],
+    "Receiver": [["0xBA12222222228d8Ba445958a75a0704d566BF263", 1]],
+    "Amount": 1,
     "Status": "PENDING",
     "Type": 3,
     "Nonce": 2,
@@ -26,9 +26,9 @@ mock_transaction_2 = {
 
 mock_unpublished_transaction = {
     "Hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9e5454876564994848418448",
-    "Sender": ["0xF475fDC8633D4eF7FB7F82E93424484514151489"],
-    "Receiver": ["0xBA12222222228d8Ba445958a75a0716992784785"],
-    "Amount": 3,
+    "Sender": [["0xF475fDC8633D4eF7FB7F82E93424484514151489", 2]],
+    "Receiver": [["0xBA12222222228d8Ba445958a75a0716992784785", 2]],
+    "Amount": 2,
     "Status": "APPROVED",
     "Type": 2,
     "Nonce": 3,
