@@ -7,7 +7,7 @@ create table if not exists block
     difficulty          int             not null,
     miner               varchar(128),
     time_stamp          varchar(32)     not null,
-    insert_time         timestamp       not null default current_timestamp,
+    insert_time         timestamp(3)    not null default current_timestamp(3),
     primary key (block_hash)
 );
 
@@ -46,7 +46,7 @@ create table if not exists transaction
     type        int                                     not null,
     nonce       int                                     not null,
     fee         int                                     not null,
-    insert_time timestamp                               not null default current_timestamp,
+    insert_time timestamp(3)                            not null default current_timestamp(3),
     primary key (txn_hash),
     foreign key (type) references txn_type(type)
 );
