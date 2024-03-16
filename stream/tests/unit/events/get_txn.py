@@ -1,5 +1,7 @@
+import json
+
 mock_event = {
-    "body": "{\"txn_hash\": \"0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74\"}",
+    "pathParameters": {"txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74"},
     "headers": {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -40,7 +42,6 @@ mock_event = {
     },
     "multiValueQueryStringParameters": None,
     "path": "/transaction",
-    "pathParameters": None,
     "queryStringParameters": None,
     "requestContext": {
         "accountId": "123456789012",
@@ -80,10 +81,12 @@ mock_txn = {
 mock_txn_body = {
     "txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74",
     "status": "PENDING",
-    "amount": 1,
+    "amount": 4,
     "type": 3,
     "nonce": 4726,
-    "fee": 1
+    "fee": 1,
+    "senders": json.dumps([{"sender_key": "0x1", "amount": 1}, {"sender_key": "0x2", "amount": 3}]),
+    "receivers": json.dumps([{"receiver_key": "0x3", "amount": 2}, {"receiver_key": "0x4", "amount": 2}]),
 }
 
 
