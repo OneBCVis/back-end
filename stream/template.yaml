@@ -19,6 +19,17 @@ Resources:
                 httpMethod: POST
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetStreamData.Arn}/invocations
+              parameters:
+                - name: start_time
+                  in: query
+                  required: true
+                  schema:
+                    type: string
+                - name: end_time
+                  in: query
+                  required: true
+                  schema:
+                    type: string
               responses: {}
           /stats/:
             get:
@@ -27,12 +38,38 @@ Resources:
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetStats.Arn}/invocations
               responses: {}
-          /transaction/:
+          /transaction/{txn_hash}/:
             get:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetTransaction.Arn}/invocations
+              parameters:
+                - name: txn_hash
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    pattern: 0x^[a-f0-9]{24,128}$
+              responses: {}
+          /block/{block_hash}/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetBlock.Arn}/invocations
+              parameters:
+                - name: block_hash
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    pattern: ^(0x[a-f0-9]{24,128}|initial)$
+                - name: full
+                  in: query
+                  required: false
+                  schema:
+                    type: boolean
               responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
@@ -320,7 +357,7 @@ Resources:
         ApiGETtransaction:
           Type: Api
           Properties:
-            Path: /transaction/
+            Path: /transaction/{txn_hash}/
             Method: GET
             RestApiId: !Ref Api
       Role: !GetAtt GetTransactionRole.Arn
@@ -349,6 +386,85 @@ Resources:
             Action: sts:AssumeRole
       Policies:
         - PolicyName: GetTransactionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetBlock:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetBlock
+      CodeUri: src/GetBlock
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiGETblock:
+          Type: Api
+          Properties:
+            Path: /block/{block_hash}/
+            Method: GET
+            RestApiId: !Ref Api
+      Role: !GetAtt GetBlockRole.Arn
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
+  GetBlockLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetBlock}
+  GetBlockRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetBlockRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -411,4 +527,4 @@ Outputs:
     Value: !Ref TransactionBlockStream
   ApiEndpoint:
     Description: The endpoint URL for the backend API
-    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/
