@@ -1,4 +1,5 @@
 import json
+import random
 
 
 mock_block = {
@@ -110,9 +111,46 @@ mock_event = {
     "stageVariables": None
 }
 
+prev_hash = "0x" + "".join(random.choices("0123456789abcdef", k=64))
+
+
+def generate_random_block():
+    global prev_hash
+    block_hash = "0x" + "".join(random.choices("0123456789abcdef", k=64))
+    previous_block_hash = prev_hash
+    prev_hash = block_hash
+    nonce = random.randint(0, 1000000)
+    difficulty = random.randint(0, 100)
+    height = random.randint(0, 1000)
+    miner = "0x" + "".join(random.choices("0123456789abcdef", k=40))
+    time_stamp = "Feb-18-2024 03:56:47 AM +UTC"
+    total_amount = random.randint(0, 1000)
+    total_fee = random.randint(0, 100)
+    txn_count = random.randint(0, 10)
+
+    return {
+        "block_hash": block_hash,
+        "previous_block_hash": previous_block_hash,
+        "nonce": nonce,
+        "difficulty": difficulty,
+        "height": height,
+        "miner": miner,
+        "time_stamp": time_stamp,
+        "total_amount": total_amount,
+        "total_fee": total_fee,
+        "txn_count": txn_count
+    }
+
+
+mock_initial_blocks = []
+for i in range(5):
+    mock_initial_blocks.append(generate_random_block())
+mock_initial_blocks.reverse()
+
 
 def get_block():
     return {
         "event": mock_event,
-        "block": mock_block
+        "block": mock_block,
+        "initial_blocks": mock_initial_blocks
     }

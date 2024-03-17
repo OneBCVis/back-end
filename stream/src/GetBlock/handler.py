@@ -29,7 +29,7 @@ schema = {
     "properties": {
         "block_hash": {
             "type": "string",
-            "pattern": "^0x[a-f0-9]{24,128}$"
+            "pattern": "initial|^0x[a-f0-9]{24,128}$"
         }
     },
     "required": ["block_hash"]
@@ -46,9 +46,11 @@ def get_data_from_rds(event):
         jsonschema.validate(event["pathParameters"], schema)
         block_hash = event["pathParameters"]["block_hash"]
         is_full = False
+        initial = block_hash == "initial"
 
-        if event["queryStringParameters"] and "full" in event["queryStringParameters"]:
-            is_full = event["queryStringParameters"]["full"] == "true"
+        if not initial:
+            if event["queryStringParameters"] and "full" in event["queryStringParameters"]:
+                is_full = event["queryStringParameters"]["full"] == "true"
 
         client = boto3.client(
             service_name='secretsmanager', region_name=region)
@@ -65,8 +67,7 @@ def get_data_from_rds(event):
 
         logger.info("SUCCESS: Able to connect to RDS MySQL instance")
 
-        if is_full:
-            query_get_full_block = """
+        block_header = """
                 SELECT
                     b.block_hash,
                     b.previous_block_hash,
@@ -77,7 +78,18 @@ def get_data_from_rds(event):
                     b.miner,
                     b.nonce,
                     b.difficulty,
-                    b.height,
+                    b.height"""
+
+        if initial:
+            query_get_last_blocks = block_header + """
+                FROM
+                    block b
+                ORDER BY
+                    b.insert_time DESC
+                LIMIT 5"""
+            cursor.execute(query_get_last_blocks)
+        elif is_full:
+            query_get_full_block = block_header + """,
                     (
                         SELECT JSON_ARRAYAGG(txn_hash)
                         FROM block_txn
@@ -99,31 +111,29 @@ def get_data_from_rds(event):
                     b.block_hash = %s"""
             cursor.execute(query_get_full_block, (block_hash))
         else:
-            query_get_block_header = """
-                SELECT
-                    b.block_hash,
-                    b.previous_block_hash,
-                    b.total_amount,
-                    b.total_fee,
-                    b.txn_count,
-                    b.time_stamp,
-                    b.miner,
-                    b.nonce,
-                    b.difficulty,
-                    b.height
+            query_get_block_header = block_header + """
                 FROM
                     block b
                 WHERE
                     b.block_hash = %s"""
             cursor.execute(query_get_block_header, (block_hash))
 
-        result_block = cursor.fetchall()
+        result_data = cursor.fetchall()
 
         cursor.close()
 
         conn.close()
 
-        if (len(result_block) == 0):
+        if (initial):
+            response = {
+                "statusCode": 200,
+                "headers": headers,
+                "body": json.dumps({
+                    "blocks": [get_block_header_response(
+                        data) for data in result_data]
+                })
+            }
+        elif (len(result_data) == 0):
             logger.error(f"ERROR: Block hash {block_hash} not found")
             response = {
                 "statusCode": 404,
@@ -138,7 +148,7 @@ def get_data_from_rds(event):
                 "headers": headers,
                 "body": json.dumps(
                     get_full_block_response(
-                        result_block[0]) if is_full else get_block_header_response(result_block[0])
+                        result_data[0]) if is_full else get_block_header_response(result_data[0])
                 )
             }
 
