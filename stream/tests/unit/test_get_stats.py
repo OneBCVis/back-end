@@ -17,10 +17,10 @@ mock_execute = MagicMock()
 rds_conn_mock.cursor.return_value = mock_cursor
 mock_cursor.execute = mock_execute
 mock_cursor.fetchall.side_effect = [
-    [(data["transaction_count"],)],
-    [(data["block_count"],)],
-    [(data["total_tx_amount"],)],
-    data["miners"]
+    [(data["transaction_count"], data["block_count"],
+      data["total_tx_amount"], data["total_tx_fee"])],
+    data["miners"],
+    [(data["txn_pool"],)]
 ]
 mock_client = MagicMock()
 mock_client.get_secret_value.return_value = {
@@ -38,8 +38,8 @@ def test_lambda_handler():
         response = handler(mock_event, None)
 
         assert rds_conn_mock.cursor.called
-        assert mock_execute.call_count == 4
-        assert mock_cursor.fetchall.call_count == 4
+        assert mock_execute.call_count == 3
+        assert mock_cursor.fetchall.call_count == 3
 
         assert response["statusCode"] == 200
         assert response["headers"] == {
@@ -49,28 +49,49 @@ def test_lambda_handler():
             "transaction_count": data["transaction_count"],
             "block_count": data["block_count"],
             "total_tx_amount": data["total_tx_amount"],
+            "total_tx_fee": data["total_tx_fee"],
+            "txn_pool": data["txn_pool"],
             "miners": data["miners"]
         }
 
-        calls.append(call(
-            "SELECT COUNT(t.txn_hash) FROM transaction t WHERE t.insert_time >= %s AND t.insert_time <= %s",
-            (data["end_time"], data["start_time"])
-        ))
+        calls.append(call("""
+            SELECT
+                SUM(b.txn_count) AS transaction_count,
+                COUNT(b.block_hash) AS block_count,
+                SUM(b.total_amount) AS total_tx_amount,
+                SUM(b.total_fee) AS total_tx_fee
+            FROM
+                block b
+            WHERE
+                b.insert_time >= (CURRENT_TIMESTAMP(3) - INTERVAL 1 HOUR)
+                AND b.insert_time <= CURRENT_TIMESTAMP(3)"""
+                          ))
 
-        calls.append(call(
-            "SELECT COUNT(b.block_hash) FROM block b WHERE b.insert_time >= %s AND b.insert_time <= %s",
-            (data["end_time"], data["start_time"])
-        ))
+        calls.append(call("""
+            SELECT
+                miner,
+                COUNT(miner) AS miner_count
+            FROM
+                (
+                    SELECT b.miner
+                    FROM block b
+                    ORDER BY b.insert_time DESC
+                    LIMIT 1000
+                ) AS recent_blocks
+            GROUP BY
+                miner
+            ORDER BY
+                miner_count DESC
+            LIMIT 5"""
+                          ))
 
-        calls.append(call(
-            "SELECT SUM(t.amount) FROM transaction t WHERE insert_time >= %s AND insert_time <= %s",
-            (data["end_time"], data["start_time"])
-        ))
-
-        calls.append(call(
-            '''SELECT miner, COUNT(miner) AS miner_count FROM 
-                                              (SELECT b.miner FROM block b ORDER BY b.insert_time DESC LIMIT 1000) AS recent_blocks 
-                                              GROUP BY miner ORDER BY miner_count DESC LIMIT 5'''
-        ))
+        calls.append(call("""
+            SELECT
+                COUNT(txn_hash) AS txn_count
+            FROM
+                transaction
+            WHERE
+                status = 'PENDING'"""
+                          ))
 
         mock_execute.assert_has_calls(calls, any_order=True)
