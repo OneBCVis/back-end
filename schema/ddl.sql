@@ -7,6 +7,9 @@ create table if not exists block
     difficulty          int             not null,
     miner               varchar(128),
     time_stamp          varchar(32)     not null,
+    total_amount        int             not null,
+    total_fee           int             not null,
+    txn_count           int             not null,
     insert_time         timestamp(3)    not null default current_timestamp(3),
     primary key (block_hash)
 );

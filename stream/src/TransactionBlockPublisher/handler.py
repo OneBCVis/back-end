@@ -125,6 +125,7 @@ def process_transaction(txn, conn, cur, is_full=False):
                 f"ERROR: Could not process transaction: {txn['Hash']}")
 
         conn.commit()
+        return txn['Amount'], txn['Fee']
     except pymysql.MySQLError as e:
         logger.error(f"ERROR: MySQL Error occurred: {e}")
         conn.rollback()
@@ -132,15 +133,23 @@ def process_transaction(txn, conn, cur, is_full=False):
         logger.error(f"ERROR: Could not process transaction: {e}")
         conn.rollback()
 
+    return None, None
+
 
 def process_block(block, conn, cur):
     try:
+        total_amount, total_fee, txn_cnt = 0, 0, 0
         for txn in block["Transactions"]:
-            process_transaction(txn, conn, cur, True)
+            amount, fee = process_transaction(txn, conn, cur, True)
+            if (amount != None) and (fee != None):
+                total_amount += int(amount)
+                total_fee += int(fee)
+                txn_cnt += 1
 
         sql_insert_block = """INSERT INTO block
-                                (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                                (block_hash, previous_block_hash, height, nonce, difficulty,
+                                miner, time_stamp, total_amount, total_fee, txn_count)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
         cur.execute(sql_insert_block, (
             block["Hash"],
@@ -149,7 +158,10 @@ def process_block(block, conn, cur):
             block["Nonce"],
             block["Difficulty"],
             block["Miner"],
-            block["Timestamp"]
+            block["Timestamp"],
+            total_amount,
+            total_fee,
+            txn_cnt
         ))
 
         for txn in block["Transactions"]:
