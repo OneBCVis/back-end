@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 import os
 import boto3
+import jsonschema
 
 
 # RDS settings
@@ -15,6 +16,20 @@ region = os.environ['RDS_REGION']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+schema = {
+    "type": "object",
+    "properties": {
+        "start_time": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$"
+        },
+        "end_time": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$"
+        }
+    },
+}
+
 
 def handler(event, context):
     # Log the event argument for debugging and for use in local development.
@@ -23,9 +38,26 @@ def handler(event, context):
 
 def get_data_from_rds(event):
     try:
-        body = json.loads(event['body'])
-        start_timestamp = body['start_time']
-        end_timestamp = body['end_time']
+        params = event["queryStringParameters"]
+        jsonschema.validate(params, schema)
+
+        try:
+            datetime.strptime(
+                params["start_time"], '%Y-%m-%d %H:%M:%S.%f')
+            datetime.strptime(
+                params["end_time"], '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError as e:
+            logger.error(f"ERROR: Invalid date format: {e}")
+            return {
+                'statusCode': 400,
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                'body': json.dumps('Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS.SSS')
+            }
+
+        start_timestamp = params["start_time"]
+        end_timestamp = params["end_time"]
 
         client = boto3.client(
             service_name='secretsmanager', region_name=region)
@@ -54,42 +86,17 @@ def get_data_from_rds(event):
             SELECT
                 b.block_hash,
                 b.previous_block_hash,
-                bt.txn_hashes,
-                u.uncle_hashes,
-                ocd.off_chain_data_ids,
-                ocd.off_chain_data_sizes
+                JSON_ARRAYAGG(bt.txn_hash) AS transactions,
+                b.total_amount,
+                b.total_fee,
+                b.txn_count
             FROM
                 block b
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(txn_hash) txn_hashes
-                FROM
-                    block_txn
-                GROUP BY
-                    block_hash
-            ) bt ON b.block_hash = bt.block_hash
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(uncle_hash) uncle_hashes
-                FROM
-                    uncle
-                GROUP BY
-                    block_hash
-            ) u ON b.block_hash = u.block_hash
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(id) off_chain_data_ids,
-                    GROUP_CONCAT(size) off_chain_data_sizes
-                FROM
-                    off_chain_data
-                GROUP BY
-                    block_hash
-            ) ocd ON b.block_hash = ocd.block_hash
+            LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
             WHERE
-                b.insert_time >= %s AND b.insert_time < %s"""
+                b.insert_time >= %s AND b.insert_time < %s
+            GROUP BY
+                b.block_hash"""
         cursor.execute(query_get_blocks, (start_timestamp, end_timestamp))
         result_blocks = cursor.fetchall()
 
@@ -104,6 +111,18 @@ def get_data_from_rds(event):
             "body": json.dumps({
                 "transactions": get_transaction_response(result_transactions),
                 "blocks": get_block_response(result_blocks)
+            })
+        }
+
+    except jsonschema.ValidationError as e:
+        logger.error(f"ERROR: JSON Schema Error occurred: {e}")
+        response = {
+            "statusCode": 400,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "error": "Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS.SSS"
             })
         }
 
@@ -155,10 +174,10 @@ def get_block_response(result_blocks):
         block_dict = {
             "block_hash": block[0],
             "previous_block_hash": block[1],
-            "txn_hashes": block[2].split(",") if block[2] else [],
-            "uncle_hashes": block[3].split(",") if block[3] else [],
-            "off_chain_data_ids": block[4].split(",") if block[4] else [],
-            "off_chain_data_sizes": list(map(int, block[5].split(","))) if block[5] else []
+            "txn_hashes": json.loads(block[2]),
+            "total_amount": int(block[3]),
+            "total_fee": int(block[4]),
+            "txn_cnt": int(block[5])
         }
         block_response.append(block_dict)
 
