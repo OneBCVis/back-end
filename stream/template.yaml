@@ -25,11 +25,13 @@ Resources:
                   required: true
                   schema:
                     type: string
+                    pattern: ^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$
                 - name: end_time
                   in: query
                   required: true
                   schema:
                     type: string
+                    pattern: ^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$
               responses: {}
           /stats/:
             get:
@@ -50,7 +52,7 @@ Resources:
                   required: true
                   schema:
                     type: string
-                    pattern: 0x^[a-f0-9]{24,128}$
+                    pattern: ^0x[a-f0-9]{24,128}$
               responses: {}
           /block/{block_hash}/:
             get:
