@@ -90,7 +90,8 @@ def get_data_from_rds(event):
                 JSON_ARRAYAGG(bt.txn_hash) AS transactions,
                 b.total_amount,
                 b.total_fee,
-                b.txn_count
+                b.txn_count,
+                b.time_stamp
             FROM
                 block b
             LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
@@ -178,7 +179,8 @@ def get_block_response(result_blocks):
             "txn_hashes": json.loads(block[2]),
             "total_amount": int(block[3]),
             "total_fee": int(block[4]),
-            "txn_cnt": int(block[5])
+            "txn_cnt": int(block[5]),
+            "time_stamp": block[6]
         }
         block_response.append(block_dict)
 

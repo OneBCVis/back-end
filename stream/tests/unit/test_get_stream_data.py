@@ -74,7 +74,8 @@ def test_lambda_handler():
                     "txn_hashes": json.loads(mock_blocks[0][2]),
                     "total_amount": mock_blocks[0][3],
                     "total_fee": mock_blocks[0][4],
-                    "txn_cnt": 2
+                    "txn_cnt": mock_blocks[0][5],
+                    "time_stamp": mock_blocks[0][6]
                 }
             ]
         }
@@ -93,7 +94,8 @@ def test_lambda_handler():
                 JSON_ARRAYAGG(bt.txn_hash) AS transactions,
                 b.total_amount,
                 b.total_fee,
-                b.txn_count
+                b.txn_count,
+                b.time_stamp
             FROM
                 block b
             LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
