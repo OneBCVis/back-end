@@ -73,6 +73,13 @@ Resources:
                   schema:
                     type: boolean
               responses: {}
+          /initial/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetInitial.Arn}/invocations
+              responses: {}
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
@@ -422,7 +429,7 @@ Resources:
       CodeUri: src/GetBlock
       Handler: handler.handler
       Runtime: python3.12
-      MemorySize: 3008
+      MemorySize: 128
       Timeout: 30
       Tracing: Active
       Events:
@@ -453,6 +460,7 @@ Resources:
   GetBlockLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetBlock}
   GetBlockRole:
@@ -467,6 +475,86 @@ Resources:
             Action: sts:AssumeRole
       Policies:
         - PolicyName: GetBlockRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetInitial:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetInitial
+      CodeUri: src/GetInitial
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiGETinitial:
+          Type: Api
+          Properties:
+            Path: /initial/
+            Method: GET
+            RestApiId: !Ref Api
+      Role: !GetAtt GetInitialRole.Arn
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref VPCSubnet1
+          - !Ref VPCSubnet2
+          - !Ref VPCSubnet3
+  GetInitialLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetInitial}
+  GetInitialRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetInitialRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
