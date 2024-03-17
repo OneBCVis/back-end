@@ -138,13 +138,12 @@ def process_transaction(txn, conn, cur, is_full=False):
 
 def process_block(block, conn, cur):
     try:
-        total_amount, total_fee, txn_cnt = 0, 0, 0
+        total_amount, total_fee, txn_cnt = 0, 0, len(block["Transactions"])
         for txn in block["Transactions"]:
             amount, fee = process_transaction(txn, conn, cur, True)
             if (amount != None) and (fee != None):
                 total_amount += int(amount)
                 total_fee += int(fee)
-                txn_cnt += 1
 
         sql_insert_block = """INSERT INTO block
                                 (block_hash, previous_block_hash, height, nonce, difficulty,
