@@ -75,7 +75,8 @@ def test_lambda_handler():
                     "total_amount": mock_blocks[0][3],
                     "total_fee": mock_blocks[0][4],
                     "txn_cnt": mock_blocks[0][5],
-                    "time_stamp": mock_blocks[0][6]
+                    "time_stamp": mock_blocks[0][6],
+                    "miner": mock_blocks[0][7]
                 }
             ]
         }
@@ -95,7 +96,8 @@ def test_lambda_handler():
                 b.total_amount,
                 b.total_fee,
                 b.txn_count,
-                b.time_stamp
+                b.time_stamp,
+                b.miner
             FROM
                 block b
             LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash

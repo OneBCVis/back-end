@@ -105,7 +105,8 @@ mock_blocks = [
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c78",
         '["0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75",'
         + '"0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76"]',
-        2, 3, 2, "2024-02-23 20:25:10.748"
+        2, 3, 2, "2024-02-23 20:25:10.748",
+        "0xF475fDC8633D4eF7FB7F82E93424Decc81e20485"
     )
 ]
 

@@ -91,7 +91,8 @@ def get_data_from_rds(event):
                 b.total_amount,
                 b.total_fee,
                 b.txn_count,
-                b.time_stamp
+                b.time_stamp,
+                b.miner
             FROM
                 block b
             LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
@@ -180,7 +181,8 @@ def get_block_response(result_blocks):
             "total_amount": int(block[3]),
             "total_fee": int(block[4]),
             "txn_cnt": int(block[5]),
-            "time_stamp": block[6]
+            "time_stamp": block[6],
+            "miner": block[7]
         }
         block_response.append(block_dict)
 
