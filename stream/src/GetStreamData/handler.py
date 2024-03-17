@@ -7,6 +7,15 @@ import boto3
 import jsonschema
 
 
+# CORS
+cors_origin = os.environ['CORS_ORIGIN']
+headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": cors_origin,
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET"
+}
+
 # RDS settings
 rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
@@ -108,9 +117,7 @@ def get_data_from_rds(event):
 
         response = {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "transactions": get_transaction_response(result_transactions),
                 "blocks": get_block_response(result_blocks)
@@ -121,9 +128,7 @@ def get_data_from_rds(event):
         logger.error(f"ERROR: JSON Schema Error occurred: {e}")
         response = {
             "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS.SSS"
             })
@@ -133,9 +138,7 @@ def get_data_from_rds(event):
         logger.error(f"ERROR: MySQL Error occurred: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })
@@ -145,9 +148,7 @@ def get_data_from_rds(event):
         logger.error(f"ERROR: Internal Server Error: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })

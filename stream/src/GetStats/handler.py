@@ -6,6 +6,15 @@ import boto3
 from datetime import datetime, timedelta
 
 
+# CORS
+cors_origin = os.environ['CORS_ORIGIN']
+headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": cors_origin,
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET"
+}
+
 # RDS settings
 rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
@@ -88,9 +97,7 @@ def get_stats(event):
 
         response = {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "transaction_count": int(result_stats[0][0]) if len(result_stats) > 0 else 0,
                 "block_count": int(result_stats[0][1]) if len(result_stats) > 0 else 0,
@@ -105,9 +112,7 @@ def get_stats(event):
         logger.error(f"ERROR: MySQL Error occurred: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })
@@ -117,9 +122,7 @@ def get_stats(event):
         logger.error(f"ERROR: Error occurred: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })

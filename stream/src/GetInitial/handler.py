@@ -5,6 +5,15 @@ import os
 import boto3
 
 
+# CORS
+cors_origin = os.environ['CORS_ORIGIN']
+headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": cors_origin,
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET"
+}
+
 # RDS settings
 rds_secret_arn = os.environ['RDS_SECRETARN']
 rds_proxy_host = os.environ['RDS_HOSTNAME']
@@ -59,9 +68,7 @@ def get_data_from_rds(event):
 
         response = {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "txn_types": json.loads(result_types[0][0]),
                 "txn_pool": int(result_pool[0][0])
@@ -72,9 +79,7 @@ def get_data_from_rds(event):
         logger.error(f"ERROR: MySQL Error occurred: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })
@@ -84,9 +89,7 @@ def get_data_from_rds(event):
         logger.error(f"ERROR: Error occurred: {e}")
         response = {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "headers": headers,
             "body": json.dumps({
                 "error": "Internal Server Error"
             })

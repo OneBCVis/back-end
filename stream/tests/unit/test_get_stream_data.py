@@ -31,7 +31,7 @@ def test_lambda_handler():
         rds_mock.return_value = rds_conn_mock
         boto3_mock.return_value = mock_client
 
-        from src.GetStreamData.handler import handler
+        from src.GetStreamData.handler import handler, headers
         response = handler(mock_event, None)
 
         assert rds_conn_mock.cursor.called
@@ -39,9 +39,7 @@ def test_lambda_handler():
         assert mock_cursor.fetchall.call_count == 2
 
         assert response["statusCode"] == 200
-        assert response["headers"] == {
-            "Content-Type": "application/json"
-        }
+        assert response["headers"] == headers
         assert json.loads(response["body"]) == {
             "transactions": [
                 {

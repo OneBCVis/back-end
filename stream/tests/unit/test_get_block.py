@@ -83,7 +83,7 @@ def test_lambda_handler():
         rds_mock.return_value = rds_conn_mock
         boto3_mock.return_value = mock_client
 
-        from src.GetBlock.handler import handler
+        from src.GetBlock.handler import handler, headers
         response_1 = handler(mock_event, None)
         mock_event["queryStringParameters"] = {"full": "false"}
         response_2 = handler(mock_event, None)
@@ -159,19 +159,13 @@ def test_lambda_handler():
         mock_execute.assert_has_calls(calls, any_order=True)
 
         assert response_1["statusCode"] == 200
-        assert response_1["headers"] == {
-            "Content-Type": "application/json"
-        }
+        assert response_1["headers"] == headers
         assert json.loads(response_1["body"]) == mock_block_header
 
         assert response_2["statusCode"] == 200
-        assert response_2["headers"] == {
-            "Content-Type": "application/json"
-        }
+        assert response_2["headers"] == headers
         assert json.loads(response_2["body"]) == mock_block_header
 
         assert response_3["statusCode"] == 200
-        assert response_3["headers"] == {
-            "Content-Type": "application/json"
-        }
+        assert response_3["headers"] == headers
         assert json.loads(response_3["body"]) == mock_block
