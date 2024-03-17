@@ -78,7 +78,7 @@ mock_event = {
         ]
     },
     "multiValueQueryStringParameters": None,
-    "path": "/transaction",
+    "path": "/block/{block_hash}/",
     "queryStringParameters": None,
     "requestContext": {
         "accountId": "123456789012",

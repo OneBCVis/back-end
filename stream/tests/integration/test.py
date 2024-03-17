@@ -30,7 +30,7 @@ class Test(TestCase):
         return stack_name
 
     def setUp(self) -> None:
-        time_zone = os.environ.get("TIME_ZONE") or "US/Eastern"
+        time_zone = os.environ.get("TIME_ZONE") or "UTC"
         os.environ['TZ'] = time_zone
         stack_name = Test.get_stack_name()
         client = boto3.client("cloudformation")

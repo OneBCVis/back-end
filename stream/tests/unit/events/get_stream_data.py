@@ -42,7 +42,7 @@ mock_event = {
         ]
     },
     "multiValueQueryStringParameters": None,
-    "path": "/stream",
+    "path": "/stream/",
     "pathParameters": None,
     "requestContext": {
         "accountId": "123456789012",

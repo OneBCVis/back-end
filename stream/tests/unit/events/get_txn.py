@@ -61,7 +61,7 @@ mock_event = {
             "userAgent": "Custom User Agent String",
             "userArn": None
         },
-        "path": "/transaction/",
+        "path": "/transaction/{txn_hash}/",
         "protocol": "HTTP/1.1",
         "requestId": "fb33dd6d-b06b-495f-a03e-ff1e718553a9",
         "requestTime": "23/Feb/2024:13:31:11 +0000",

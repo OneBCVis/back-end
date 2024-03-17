@@ -40,7 +40,7 @@ mock_event = {
         ]
     },
     "multiValueQueryStringParameters": None,
-    "path": "/initial",
+    "path": "/initial/",
     "queryStringParameters": None,
     "requestContext": {
         "accountId": "123456789012",
