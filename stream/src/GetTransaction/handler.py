@@ -23,6 +23,7 @@ schema = {
             "pattern": "^0x[a-f0-9]{24,128}$"
         }
     },
+    "required": ["txn_hash"]
 }
 
 
