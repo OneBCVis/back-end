@@ -97,7 +97,7 @@ def process_transaction(txn, conn, cur, is_full=False):
         sql_insert_txn = "call insert_transaction(%s, %s, %s, %s, %s, %s, %s, %s, %s, @result)"
 
         cur.execute(sql_insert_txn, (
-            txn["Hash"],
+            txn["Hash"].lower(),
             txn["Status"],
             txn["Amount"],
             txn["Type"],
@@ -150,9 +150,10 @@ def process_block(block, conn, cur):
                                 miner, time_stamp, total_amount, total_fee, txn_count)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
+        blockHash = block["Hash"].lower()
         cur.execute(sql_insert_block, (
-            block["Hash"],
-            block["PreviousBlockHash"],
+            blockHash,
+            block["PreviousBlockHash"].lower(),
             block["Height"],
             block["Nonce"],
             block["Difficulty"],
@@ -165,18 +166,18 @@ def process_block(block, conn, cur):
 
         for txn in block["Transactions"]:
             sql_insert_txn = "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)"
-            cur.execute(sql_insert_txn, (block["Hash"], txn["Hash"]))
+            cur.execute(sql_insert_txn, (blockHash, txn["Hash"].lower()))
 
         for uncle in block["Uncles"]:
             sql_insert_uncle = "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)"
-            cur.execute(sql_insert_uncle, (uncle, block["Hash"]))
+            cur.execute(sql_insert_uncle, (uncle.lower(), blockHash))
 
         for offChainData in block["Sidecar"]:
             sql_insert_off_chain = """INSERT INTO off_chain_data
                                         (block_hash, id, txn_id, size)
                                         VALUES (%s, %s, %s, %s)"""
             cur.execute(sql_insert_off_chain, (
-                block["Hash"],
+                blockHash,
                 offChainData["ID"],
                 offChainData["TransactionID"],
                 offChainData["Size"]
