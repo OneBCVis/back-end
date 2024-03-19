@@ -41,6 +41,7 @@ def generate_random_block():
     for _ in range(random.randint(0, len(txn_pool))):
         txn = random.choice(txn_pool)
         txn_pool.remove(txn)
+        txn["Status"] = 'APPROVED'
         block["Transactions"].append(txn)
     block["Uncles"] = []
     block["Sidecar"] = []
