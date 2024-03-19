@@ -24,12 +24,18 @@ mock_cursor.fetchall.return_value = [(
     mock_txn_body["amount"],
     mock_txn_body["type"],
     mock_txn_body["nonce"],
-    mock_txn_body["fee"]
+    mock_txn_body["fee"],
+    mock_txn_body["senders"],
+    mock_txn_body["receivers"]
 )]
 mock_client = MagicMock()
 mock_client.get_secret_value.return_value = {
     "SecretString": '{"username": "XXXX", "password": "XXXX"}'
 }
+
+mock_txn_body_copy = mock_txn_body.copy()
+mock_txn_body_copy["senders"] = json.loads(mock_txn_body_copy["senders"])
+mock_txn_body_copy["receivers"] = json.loads(mock_txn_body_copy["receivers"])
 
 
 def test_lambda_handler():
@@ -37,18 +43,46 @@ def test_lambda_handler():
         rds_mock.return_value = rds_conn_mock
         boto3_mock.return_value = mock_client
 
-        from src.GetTransaction.handler import handler
+        from src.GetTransaction.handler import handler, headers
         response = handler(mock_event, None)
 
         assert rds_conn_mock.cursor.called
         assert mock_execute.called
-        assert mock_execute.call_args[0][0] == """SELECT t.txn_hash, t.status, t.amount, t.type, t.nonce, t.fee
-                                    FROM transaction t WHERE t.txn_hash = %s"""
+        assert mock_execute.call_args[0][0] == """
+            SELECT
+                t.txn_hash,
+                t.status,
+                t.amount,
+                t.type,
+                t.nonce,
+                t.fee,
+                (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'sender_key',   JSON_UNQUOTE(sender_key),
+                            'amount',       amount
+                        )
+                    )
+                    FROM txn_sender
+                    WHERE txn_hash = t.txn_hash
+                ) AS senders,
+                (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'receiver_key', JSON_UNQUOTE(receiver_key),
+                            'amount',       amount
+                        )
+                    )
+                    FROM txn_receiver
+                    WHERE txn_hash = t.txn_hash
+                ) AS receivers
+            FROM
+                transaction t
+            WHERE
+                t.txn_hash = %s"""
         assert mock_execute.call_args[0][1] == mock_txn["txn_hash"]
         assert mock_cursor.fetchall.called
 
         assert response["statusCode"] == 200
-        assert response["headers"] == {
-            "Content-Type": "application/json"
-        }
-        assert json.loads(response["body"]) == mock_txn_body
+        assert response["headers"] == headers
+        assert json.loads(response["body"]) == mock_txn_body_copy

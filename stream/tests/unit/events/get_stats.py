@@ -1,5 +1,4 @@
 mock_event = {
-    "body": "{ \"start_time\": \"2024-02-23 22:13:29\" }",
     "headers": {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -82,6 +81,8 @@ def get_stats():
         "transaction_count": 357481,
         "block_count": 811,
         "total_tx_amount": 269700,
+        "total_tx_fee": 4741,
+        "txn_pool": 741,
         "miners": [
             [
                 "0x7a250d5630b4cf539739df2c5dacb4c659f2488e",
