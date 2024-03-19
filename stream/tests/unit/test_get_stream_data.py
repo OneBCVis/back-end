@@ -11,7 +11,7 @@ data = get_stream_data()
 mock_event = data["event"]
 mock_txns = data["txns"]
 mock_blocks = data["blocks"]
-body = json.loads(mock_event['body'])
+params = mock_event['queryStringParameters']
 calls = []
 
 rds_conn_mock = MagicMock()
@@ -31,7 +31,7 @@ def test_lambda_handler():
         rds_mock.return_value = rds_conn_mock
         boto3_mock.return_value = mock_client
 
-        from src.GetStreamData.handler import handler
+        from src.GetStreamData.handler import handler, headers
         response = handler(mock_event, None)
 
         assert rds_conn_mock.cursor.called
@@ -39,9 +39,7 @@ def test_lambda_handler():
         assert mock_cursor.fetchall.call_count == 2
 
         assert response["statusCode"] == 200
-        assert response["headers"] == {
-            "Content-Type": "application/json"
-        }
+        assert response["headers"] == headers
         assert json.loads(response["body"]) == {
             "transactions": [
                 {
@@ -71,10 +69,12 @@ def test_lambda_handler():
                 {
                     "block_hash": mock_blocks[0][0],
                     "previous_block_hash": mock_blocks[0][1],
-                    "txn_hashes": mock_blocks[0][2].split(","),
-                    "uncle_hashes": mock_blocks[0][3].split(","),
-                    "off_chain_data_ids": mock_blocks[0][4].split(","),
-                    "off_chain_data_sizes": list(map(int, mock_blocks[0][5].split(",")))
+                    "txn_hashes": json.loads(mock_blocks[0][2]),
+                    "total_amount": mock_blocks[0][3],
+                    "total_fee": mock_blocks[0][4],
+                    "txn_cnt": mock_blocks[0][5],
+                    "time_stamp": mock_blocks[0][6],
+                    "miner": mock_blocks[0][7]
                 }
             ]
         }
@@ -83,50 +83,27 @@ def test_lambda_handler():
             SELECT t.txn_hash, t.status, t.amount, t.type, t.fee
             FROM transaction t
             WHERE t.insert_time >= %s AND t.insert_time  < %s""",
-                          (body["start_time"], body["end_time"])
+                          (params["start_time"], params["end_time"])
                           ))
 
         calls.append(call("""
             SELECT
                 b.block_hash,
                 b.previous_block_hash,
-                bt.txn_hashes,
-                u.uncle_hashes,
-                ocd.off_chain_data_ids,
-                ocd.off_chain_data_sizes
+                JSON_ARRAYAGG(bt.txn_hash) AS transactions,
+                b.total_amount,
+                b.total_fee,
+                b.txn_count,
+                b.time_stamp,
+                b.miner
             FROM
                 block b
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(txn_hash) txn_hashes
-                FROM
-                    block_txn
-                GROUP BY
-                    block_hash
-            ) bt ON b.block_hash = bt.block_hash
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(uncle_hash) uncle_hashes
-                FROM
-                    uncle
-                GROUP BY
-                    block_hash
-            ) u ON b.block_hash = u.block_hash
-            LEFT JOIN (
-                SELECT
-                    block_hash,
-                    GROUP_CONCAT(id) off_chain_data_ids,
-                    GROUP_CONCAT(size) off_chain_data_sizes
-                FROM
-                    off_chain_data
-                GROUP BY
-                    block_hash
-            ) ocd ON b.block_hash = ocd.block_hash
+            LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
             WHERE
-                b.insert_time >= %s AND b.insert_time < %s""",
-                          (body["start_time"], body["end_time"])
+                b.insert_time >= %s AND b.insert_time < %s
+            GROUP BY
+                b.block_hash""",
+                          (params["start_time"], params["end_time"])
                           ))
 
         mock_execute.assert_has_calls(calls, any_order=True)

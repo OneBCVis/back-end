@@ -1,5 +1,8 @@
 mock_event = {
-    "body": "{\"start_time\": \"2024-02-23 20:25:10\", \"end_time\": \"2024-02-23 20:25:10\"}",
+    "queryStringParameters": {
+        "start_time": "2024-02-23 20:25:10.748",
+        "end_time": "2024-02-23 20:25:10.147"
+    },
     "headers": {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -39,9 +42,8 @@ mock_event = {
         ]
     },
     "multiValueQueryStringParameters": None,
-    "path": "/stream",
+    "path": "/stream/",
     "pathParameters": None,
-    "queryStringParameters": None,
     "requestContext": {
         "accountId": "123456789012",
         "apiId": "1234567890",
@@ -101,10 +103,10 @@ mock_blocks = [
     (
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c77",
         "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c78",
-        "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75,0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76",
-        "0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c496d8597f74125896,0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c496d8597f8e874856",
-        "0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c4803894599629,0x779b82873c55af03359d3f33f50a6f066252cccaf5d9d3c4803895742157",
-        "1024,2048"
+        '["0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c75",'
+        + '"0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c76"]',
+        2, 3, 2, "2024-02-23 20:25:10.748",
+        "0xF475fDC8633D4eF7FB7F82E93424Decc81e20485"
     )
 ]
 

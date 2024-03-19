@@ -54,9 +54,13 @@ def test_lambda_handler(kinesis_event):
         assert_transaction_inserted(mock_transaction_1)
         assert_transaction_inserted(mock_transaction_2)
         assert_transaction_inserted(duplicate_transaction)
-        assert_block_inserted(mock_block_1)
+        props = [0, 0, 0]
         for txn in mock_block_1["Transactions"]:
             assert_transaction_update(txn, mock_block_1)
+            props[0] += txn["Amount"]
+            props[1] += txn["Fee"]
+            props[2] += 1
+        assert_block_inserted(mock_block_1, props)
 
         mock_execute.assert_has_calls(calls, any_order=True)
 
@@ -80,11 +84,12 @@ def assert_transaction_inserted(txn, is_full=False):
     calls.append(call("SELECT @result AS result"))
 
 
-def assert_block_inserted(block):
+def assert_block_inserted(block, props):
     calls.append(call(
         """INSERT INTO block
-                                (block_hash, previous_block_hash, height, nonce, difficulty, miner, time_stamp)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                                (block_hash, previous_block_hash, height, nonce, difficulty,
+                                miner, time_stamp, total_amount, total_fee, txn_count)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (
             block["Hash"],
             block["PreviousBlockHash"],
@@ -92,7 +97,10 @@ def assert_block_inserted(block):
             block["Nonce"],
             block["Difficulty"],
             block["Miner"],
-            block["Timestamp"]
+            block["Timestamp"],
+            props[0],
+            props[1],
+            props[2]
         )
     ))
 

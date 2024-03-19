@@ -1,7 +1,6 @@
 import json
 
 mock_event = {
-    "pathParameters": {"txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74"},
     "headers": {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate",
@@ -41,7 +40,7 @@ mock_event = {
         ]
     },
     "multiValueQueryStringParameters": None,
-    "path": "/transaction",
+    "path": "/initial/",
     "queryStringParameters": None,
     "requestContext": {
         "accountId": "123456789012",
@@ -61,7 +60,7 @@ mock_event = {
             "userAgent": "Custom User Agent String",
             "userArn": None
         },
-        "path": "/transaction/{txn_hash}/",
+        "path": "/transaction/",
         "protocol": "HTTP/1.1",
         "requestId": "fb33dd6d-b06b-495f-a03e-ff1e718553a9",
         "requestTime": "23/Feb/2024:13:31:11 +0000",
@@ -74,25 +73,35 @@ mock_event = {
     "stageVariables": None
 }
 
-mock_txn = {
-    "txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74"
+mock_data = {
+    "txn_types": [
+        {
+            "type": 0,
+            "name": "Legacy"
+        },
+        {
+            "type": 1,
+            "name": "Transfer"
+        },
+        {
+            "type": 2,
+            "name": "Contract Creation"
+        },
+        {
+            "type": 3,
+            "name": "Contract Execution"
+        },
+        {
+            "type": 4,
+            "name": "Shared Blob"
+        }
+    ],
+    "txn_pool": 4785
 }
 
-mock_txn_body = {
-    "txn_hash": "0x97aaa6c1bc101abecd1ebb4e1a7c067a71b2c1e3f9ef304909af86e5e2f84c74",
-    "status": "PENDING",
-    "amount": 4,
-    "type": 3,
-    "nonce": 4726,
-    "fee": 1,
-    "senders": json.dumps([{"sender_key": "0x1", "amount": 1}, {"sender_key": "0x2", "amount": 3}]),
-    "receivers": json.dumps([{"receiver_key": "0x3", "amount": 2}, {"receiver_key": "0x4", "amount": 2}]),
-}
 
-
-def get_txn():
+def get_initial():
     return {
         "event": mock_event,
-        "txn": mock_txn,
-        "txn_body": mock_txn_body
+        "data": mock_data
     }
