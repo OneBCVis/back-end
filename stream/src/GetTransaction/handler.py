@@ -72,7 +72,7 @@ def get_data_from_rds(event):
                 (
                     SELECT JSON_ARRAYAGG(
                         JSON_OBJECT(
-                            'sender_key',   JSON_UNQUOTE(sender_key),
+                            'sender_key',   sender_key,
                             'amount',       amount
                         )
                     )
@@ -82,7 +82,7 @@ def get_data_from_rds(event):
                 (
                     SELECT JSON_ARRAYAGG(
                         JSON_OBJECT(
-                            'receiver_key', JSON_UNQUOTE(receiver_key),
+                            'receiver_key', receiver_key,
                             'amount',       amount
                         )
                     )

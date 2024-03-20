@@ -111,7 +111,7 @@ ist: begin
         while i < json_length(t_senders) do
             set sender = json_extract(json_extract(t_senders, concat('$[', i, ']')), '$[0]');
             set amt = json_extract(json_extract(t_senders, concat('$[', i, ']')), '$[1]');
-            insert into txn_sender (txn_hash, sender_key, amount) values (t_hash, sender, amt);
+            insert into txn_sender (txn_hash, sender_key, amount) values (t_hash, json_unquote(sender), amt);
             set i = i + 1;
         end while;
 
@@ -119,7 +119,7 @@ ist: begin
         while i < json_length(t_receivers) do
             set receiver = json_extract(json_extract(t_receivers, concat('$[', i, ']')), '$[0]');
             set amt = json_extract(json_extract(t_receivers, concat('$[', i, ']')), '$[1]');
-            insert into txn_receiver (txn_hash, receiver_key, amount) values (t_hash, receiver, amt);
+            insert into txn_receiver (txn_hash, receiver_key, amount) values (t_hash, json_unquote(receiver), amt);
             set i = i + 1;
         end while;
 

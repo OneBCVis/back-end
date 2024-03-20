@@ -59,7 +59,7 @@ def test_lambda_handler():
                 (
                     SELECT JSON_ARRAYAGG(
                         JSON_OBJECT(
-                            'sender_key',   JSON_UNQUOTE(sender_key),
+                            'sender_key',   sender_key,
                             'amount',       amount
                         )
                     )
@@ -69,7 +69,7 @@ def test_lambda_handler():
                 (
                     SELECT JSON_ARRAYAGG(
                         JSON_OBJECT(
-                            'receiver_key', JSON_UNQUOTE(receiver_key),
+                            'receiver_key', receiver_key,
                             'amount',       amount
                         )
                     )
