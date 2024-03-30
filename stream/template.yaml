@@ -87,13 +87,18 @@ Resources:
   TransactionBlockStream:
     Type: AWS::Kinesis::Stream
     Properties:
-      ShardCount: 5
-      RetentionPeriodHours: 24
+      ShardCount: !Ref KinesisShardCount
+      RetentionPeriodHours: !Ref KinesisStreamRetentionPeriod
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
       StreamModeDetails:
         StreamMode: PROVISIONED
+  TransactionBlockConsumer:
+    Type: AWS::Kinesis::StreamConsumer
+    Properties:
+      StreamARN: !GetAtt TransactionBlockStream.Arn
+      ConsumerName: TransactionBlockConsumer
   TransactionBlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
@@ -106,13 +111,6 @@ Resources:
       MemorySize: 128
       Timeout: 60
       Tracing: Active
-      Events:
-        TransactionBlockStream:
-          Type: Kinesis
-          Properties:
-            Stream: !GetAtt TransactionBlockStream.Arn
-            StartingPosition: TRIM_HORIZON
-            BatchSize: 1
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
@@ -155,9 +153,15 @@ Resources:
               - Effect: Allow
                 Action:
                   - kinesis:DescribeStream
+                  - kinesis:DescribeStreamSummary
                   - kinesis:GetShardIterator
                   - kinesis:GetRecords
+                  - kinesis:ListShards
                 Resource: !GetAtt TransactionBlockStream.Arn
+              - Effect: Allow
+                Action:
+                  - kinesis:SubscribeToShard
+                Resource: !GetAtt TransactionBlockConsumer.ConsumerARN
               - Effect: Allow
                 Action:
                   - rds-data:ExecuteStatement
@@ -180,6 +184,14 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - arn:aws:logs:*:*:*
+  TransactionBlockMapper:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: !Ref KinesisBatchSize
+      MaximumBatchingWindowInSeconds: !Ref KinesisBatchWindow
+      EventSourceArn: !GetAtt TransactionBlockConsumer.ConsumerARN
+      FunctionName: !GetAtt TransactionBlockPublisher.Arn
+      StartingPosition: TRIM_HORIZON
   GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
@@ -594,6 +606,21 @@ Metadata:
         Hostname: !Ref RDSHostname
         SecretArn: !Ref RDSSecretArn
         Arn: !Ref RDSProxyArn
+  AWS::Composer::Groups:
+    KinesisConsumer:
+      Label: Kinesis Enhanced Fan-Out Consumer
+      Members:
+        - TransactionBlockConsumer
+        - TransactionBlockMapper
+    LambdaFunctions:
+      Label: Serverless Lambda Functions
+      Members:
+        - GetStreamData
+        - GetStats
+        - GetTransaction
+        - GetBlock
+        - GetInitial
+        - TransactionBlockPublisher
 Parameters:
   RDSPort:
     Type: Number
@@ -617,6 +644,22 @@ Parameters:
     Type: String
     Default: '*'
     Description: The origin for CORS requests
+  KinesisBatchSize:
+    Type: Number
+    Default: 1
+    Description: The number of records to process in a batch
+  KinesisBatchWindow:
+    Type: Number
+    Default: 1
+    Description: The maximum time in seconds to wait for a full batch
+  KinesisShardCount:
+    Type: Number
+    Default: 5
+    Description: The number of shards in the Kinesis stream
+  KinesisStreamRetentionPeriod:
+    Type: Number
+    Default: 24
+    Description: The number of hours to retain data in the stream
 Outputs:
   TransactionBlockStreamArn:
     Description: The ARN of the Kinesis stream

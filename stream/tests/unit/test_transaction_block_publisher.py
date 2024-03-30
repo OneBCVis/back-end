@@ -32,7 +32,7 @@ mock_client.get_secret_value.return_value = {
     "SecretString": '{"username": "XXXX", "password": "XXXX"}'
 }
 mock_cursor.__enter__.return_value.fetchone.side_effect = [
-    (0,), (0,), (2,), (1,), (1,), (0,)]
+    (0,), (0,), (2,), (0,), (0,), (0,)]
 calls = []
 
 
@@ -54,12 +54,7 @@ def test_lambda_handler(kinesis_event):
         assert_transaction_inserted(mock_transaction_1)
         assert_transaction_inserted(mock_transaction_2)
         assert_transaction_inserted(duplicate_transaction)
-        props = [0, 0, 0]
-        for txn in mock_block_1["Transactions"]:
-            assert_transaction_update(txn, mock_block_1)
-            props[0] += txn["Amount"]
-            props[1] += txn["Fee"]
-            props[2] += 1
+        props = [0, 0, len(mock_block_1["Transactions"])]
         assert_block_inserted(mock_block_1, props)
 
         mock_execute.assert_has_calls(calls, any_order=True)
@@ -104,36 +99,12 @@ def assert_block_inserted(block, props):
         )
     ))
 
-    for uncle in block["Uncles"]:
-        calls.append(call(
-            "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)",
-            (
-                uncle,
-                block["Hash"]
-            )
-        ))
-
-    for offChainData in block["Sidecar"]:
-        calls.append(call(
-            """INSERT INTO off_chain_data
-                                        (block_hash, id, txn_id, size)
-                                        VALUES (%s, %s, %s, %s)""",
-            (
-                block["Hash"],
-                offChainData["ID"],
-                offChainData["TransactionID"],
-                offChainData["Size"]
-            )
-        ))
-
-
-def assert_transaction_update(txn, block):
-    assert_transaction_inserted(txn, is_full=True)
-
     calls.append(call(
-        "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)",
-        (
-            block["Hash"],
-            txn["Hash"]
-        )
-    ))
+        "call insert_block_transactions(%s, %s, @ibt_result)", (block["Hash"], json.dumps(block["Transactions"]))))
+    calls.append(call("SELECT @ibt_result AS result"))
+    calls.append(call(
+        "call insert_block_uncles(%s, %s, @ibu_result)", (block["Hash"], json.dumps(block["Uncles"]))))
+    calls.append(call("SELECT @ibu_result AS result"))
+    calls.append(call(
+        "call insert_block_sidecar(%s, %s, @ibs_result)", (block["Hash"], json.dumps(block["Sidecar"]))))
+    calls.append(call("SELECT @ibs_result AS result"))
