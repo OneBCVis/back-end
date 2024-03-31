@@ -99,12 +99,12 @@ def get_stats(event):
             "statusCode": 200,
             "headers": headers,
             "body": json.dumps({
-                "transaction_count": int(result_stats[0][0]) if len(result_stats) > 0 else 0,
-                "block_count": int(result_stats[0][1]) if len(result_stats) > 0 else 0,
-                "total_tx_amount": int(result_stats[0][2]) if len(result_stats) > 0 else 0,
-                "total_tx_fee": int(result_stats[0][3]) if len(result_stats) > 0 else 0,
-                "txn_pool": int(result_txn_pool[0][0]) if len(result_txn_pool) > 0 else 0,
-                "miners": result_miners
+                "transaction_count": int(result_stats[0][0]) if len(result_stats) > 0 and result_stats[0][0] != None else 0,
+                "block_count": int(result_stats[0][1]) if len(result_stats) > 0 and result_stats[0][1] != None else 0,
+                "total_tx_amount": int(result_stats[0][2]) if len(result_stats) > 0 and result_stats[0][2] != None else 0,
+                "total_tx_fee": int(result_stats[0][3]) if len(result_stats) > 0 and result_stats[0][3] != None else 0,
+                "txn_pool": int(result_txn_pool[0][0]) if len(result_txn_pool) > 0 and result_txn_pool[0][0] != None else 0,
+                "miners": result_miners if len(result_miners) > 0 else []
             })
         }
 
