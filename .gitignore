@@ -3,6 +3,13 @@
 
 # Testing
 test-data/
+venv/
+__pycache__/
+.pytest_cache/
 
 # Deployment configuration
 samconfig.toml
+
+# IDEs
+.idea/
+.vscode/
