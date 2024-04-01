@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: <your stack description here>
+Description: Backend Stack for OneBCVis Multiblockchain Visualiser
 Resources:
   Api:
     Type: AWS::Serverless::Api
