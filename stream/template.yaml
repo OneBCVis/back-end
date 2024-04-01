@@ -125,10 +125,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   TransactionBlockPublisherLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -226,10 +223,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   GetStreamDataLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -307,10 +301,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   GetStatsLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -388,10 +379,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   GetTransactionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -469,10 +457,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   GetBlockLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -550,10 +535,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
-        SubnetIds:
-          - !Ref VPCSubnet1
-          - !Ref VPCSubnet2
-          - !Ref VPCSubnet3
+        SubnetIds: !Ref VPCSubnets
   GetInitialLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -597,6 +579,16 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - arn:aws:logs:*:*:*
+  SecMgrVPCEndPoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcId: !Ref VPCId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref VPCSubnets
+      SecurityGroupIds:
+        - !Ref VPCSecurityGroup
+      PrivateDnsEnabled: true
 Metadata:
   AWS::Composer::ExternalResources:
     RDS:
@@ -624,49 +616,56 @@ Metadata:
 Parameters:
   RDSPort:
     Type: Number
+    Default: 3306
+    Description: The port for the RDS database.
   RDSHostname:
     Type: String
+    Description: The hostname for the RDS database or RDS database proxy.
   RDSSecretArn:
     Type: String
+    Description: The ARN of the secret for the RDS database.
   RDSProxyArn:
     Type: String
+    Description: The ARN of the RDS database or RDS database proxy.
   RDSDBName:
     Type: String
+    Description: The name of the RDS database.
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the VPC where the Lambda functions will be deployed. Ex. vpc-123a351e
   VPCSecurityGroup:
-    Type: String
-  VPCSubnet1:
-    Type: String
-  VPCSubnet2:
-    Type: String
-  VPCSubnet3:
-    Type: String
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: The security group for the Lambda functions. Ex. sg-a123fd85
+  VPCSubnets:
+    Type: List<String>
+    Description: The list of subnets where the Lambda functions will be deployed. At least one subnet is required. Ex. subnet-123a351e, subnet-456b351e
   CorsOrigin:
     Type: String
     Default: '*'
-    Description: The origin for CORS requests
+    Description: The origin for CORS requests.
   KinesisBatchSize:
     Type: Number
     Default: 1
-    Description: The number of records to process in a batch
+    Description: The number of records to process in a batch.
   KinesisBatchWindow:
     Type: Number
     Default: 1
-    Description: The maximum time in seconds to wait for a full batch
+    Description: The maximum time in seconds to wait for a full batch.
   KinesisShardCount:
     Type: Number
     Default: 5
-    Description: The number of shards in the Kinesis stream
+    Description: The number of shards in the Kinesis stream.
   KinesisStreamRetentionPeriod:
     Type: Number
     Default: 24
-    Description: The number of hours to retain data in the stream
+    Description: The number of hours to retain data in the stream.
 Outputs:
   TransactionBlockStreamArn:
-    Description: The ARN of the Kinesis stream
+    Description: The ARN of the Kinesis stream.
     Value: !GetAtt TransactionBlockStream.Arn
   TransactionBlockStreamName:
-    Description: The name of the Kinesis stream
+    Description: The name of the Kinesis stream.
     Value: !Ref TransactionBlockStream
   ApiEndpoint:
-    Description: The endpoint URL for the backend API
+    Description: The endpoint URL for the backend API.
     Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/
