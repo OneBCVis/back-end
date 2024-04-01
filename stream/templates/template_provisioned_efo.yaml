@@ -1,0 +1,671 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: <your stack description here>
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: Api
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /stream/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetStreamData.Arn}/invocations
+              parameters:
+                - name: start_time
+                  in: query
+                  required: true
+                  schema:
+                    type: string
+                    pattern: ^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$
+                - name: end_time
+                  in: query
+                  required: true
+                  schema:
+                    type: string
+                    pattern: ^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$
+              responses: {}
+          /stats/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetStats.Arn}/invocations
+              responses: {}
+          /transaction/{txn_hash}/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetTransaction.Arn}/invocations
+              parameters:
+                - name: txn_hash
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    pattern: ^0x[a-f0-9]{24,128}$
+              responses: {}
+          /block/{block_hash}/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetBlock.Arn}/invocations
+              parameters:
+                - name: block_hash
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    pattern: ^(0x[a-f0-9]{24,128}|initial)$
+                - name: full
+                  in: query
+                  required: false
+                  schema:
+                    type: boolean
+              responses: {}
+          /initial/:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetInitial.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+  TransactionBlockStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      ShardCount: !Ref KinesisShardCount
+      RetentionPeriodHours: !Ref KinesisStreamRetentionPeriod
+      StreamEncryption:
+        EncryptionType: KMS
+        KeyId: alias/aws/kinesis
+      StreamModeDetails:
+        StreamMode: PROVISIONED
+  TransactionBlockConsumer:
+    Type: AWS::Kinesis::StreamConsumer
+    Properties:
+      StreamARN: !GetAtt TransactionBlockStream.Arn
+      ConsumerName: TransactionBlockConsumer
+  TransactionBlockPublisher:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: TransactionBlockPublisher
+      CodeUri: src/TransactionBlockPublisher
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 60
+      Tracing: Active
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt TransactionBlockPublisherRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  TransactionBlockPublisherLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${TransactionBlockPublisher}
+  TransactionBlockPublisherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: TransactionBlockPublisherRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kinesis:DescribeStream
+                  - kinesis:DescribeStreamSummary
+                  - kinesis:GetShardIterator
+                  - kinesis:GetRecords
+                  - kinesis:ListShards
+                Resource: !GetAtt TransactionBlockStream.Arn
+              - Effect: Allow
+                Action:
+                  - kinesis:SubscribeToShard
+                Resource: !GetAtt TransactionBlockConsumer.ConsumerARN
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  TransactionBlockMapper:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: !Ref KinesisBatchSize
+      MaximumBatchingWindowInSeconds: !Ref KinesisBatchWindow
+      EventSourceArn: !GetAtt TransactionBlockConsumer.ConsumerARN
+      FunctionName: !GetAtt TransactionBlockPublisher.Arn
+      StartingPosition: TRIM_HORIZON
+  GetStreamData:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetStreamData
+      CodeUri: src/GetStreamData
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 3008
+      Timeout: 60
+      Tracing: Active
+      Events:
+        ApiGET:
+          Type: Api
+          Properties:
+            Path: /stream/
+            Method: GET
+            RestApiId: !Ref Api
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt GetStreamDataRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  GetStreamDataLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetStreamData}
+  GetStreamDataRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetStreamDataRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetStats:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetStats
+      CodeUri: src/GetStats
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiGETstats:
+          Type: Api
+          Properties:
+            Path: /stats/
+            Method: GET
+            RestApiId: !Ref Api
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      Role: !GetAtt GetStatsRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  GetStatsLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetStats}
+  GetStatsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetStatsRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetTransaction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetTransaction
+      CodeUri: src/GetTransaction
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 30
+      Tracing: Active
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      Events:
+        ApiGETtransaction:
+          Type: Api
+          Properties:
+            Path: /transaction/{txn_hash}/
+            Method: GET
+            RestApiId: !Ref Api
+      Role: !GetAtt GetTransactionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  GetTransactionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetTransaction}
+  GetTransactionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetTransactionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetBlock:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetBlock
+      CodeUri: src/GetBlock
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiGETblock:
+          Type: Api
+          Properties:
+            Path: /block/{block_hash}/
+            Method: GET
+            RestApiId: !Ref Api
+      Role: !GetAtt GetBlockRole.Arn
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  GetBlockLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetBlock}
+  GetBlockRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetBlockRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  GetInitial:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GetInitial
+      CodeUri: src/GetInitial
+      Handler: handler.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiGETinitial:
+          Type: Api
+          Properties:
+            Path: /initial/
+            Method: GET
+            RestApiId: !Ref Api
+      Role: !GetAtt GetInitialRole.Arn
+      Environment:
+        Variables:
+          RDS_PORT: !Ref RDSPort
+          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_SECRETARN: !Ref RDSSecretArn
+          RDS_DB_NAME: !Ref RDSDBName
+          RDS_REGION: !Ref AWS::Region
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RDSSecretArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCSecurityGroup
+        SubnetIds: !Ref VPCSubnets
+  GetInitialLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetInitial}
+  GetInitialRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GetInitialRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Ref RDSProxyArn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref RDSSecretArn
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:*
+  SecMgrVPCEndPoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcId: !Ref VPCId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref VPCSubnets
+      SecurityGroupIds:
+        - !Ref VPCSecurityGroup
+      PrivateDnsEnabled: true
+Metadata:
+  AWS::Composer::ExternalResources:
+    RDS:
+      Type: externalRDS
+      Settings:
+        Port: !Ref RDSPort
+        Hostname: !Ref RDSHostname
+        SecretArn: !Ref RDSSecretArn
+        Arn: !Ref RDSProxyArn
+  AWS::Composer::Groups:
+    KinesisConsumer:
+      Label: Kinesis Enhanced Fan-Out Consumer
+      Members:
+        - TransactionBlockConsumer
+        - TransactionBlockMapper
+    LambdaFunctions:
+      Label: Serverless Lambda Functions
+      Members:
+        - GetStreamData
+        - GetStats
+        - GetTransaction
+        - GetBlock
+        - GetInitial
+        - TransactionBlockPublisher
+Parameters:
+  RDSPort:
+    Type: Number
+    Default: 3306
+    Description: The port for the RDS database.
+  RDSHostname:
+    Type: String
+    Description: The hostname for the RDS database or RDS database proxy.
+  RDSSecretArn:
+    Type: String
+    Description: The ARN of the secret for the RDS database.
+  RDSProxyArn:
+    Type: String
+    Description: The ARN of the RDS database or RDS database proxy.
+  RDSDBName:
+    Type: String
+    Description: The name of the RDS database.
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the VPC where the Lambda functions will be deployed. Ex. vpc-123a351e
+  VPCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: The security group for the Lambda functions. Ex. sg-a123fd85
+  VPCSubnets:
+    Type: List<String>
+    Description: The list of subnets where the Lambda functions will be deployed. At least one subnet is required. Ex. subnet-123a351e, subnet-456b351e
+  CorsOrigin:
+    Type: String
+    Default: '*'
+    Description: The origin for CORS requests.
+  KinesisBatchSize:
+    Type: Number
+    Default: 1
+    Description: The number of records to process in a batch.
+  KinesisBatchWindow:
+    Type: Number
+    Default: 1
+    Description: The maximum time in seconds to wait for a full batch.
+  KinesisShardCount:
+    Type: Number
+    Default: 5
+    Description: The number of shards in the Kinesis stream.
+  KinesisStreamRetentionPeriod:
+    Type: Number
+    Default: 24
+    Description: The number of hours to retain data in the stream.
+Outputs:
+  TransactionBlockStreamArn:
+    Description: The ARN of the Kinesis stream.
+    Value: !GetAtt TransactionBlockStream.Arn
+  TransactionBlockStreamName:
+    Description: The name of the Kinesis stream.
+    Value: !Ref TransactionBlockStream
+  ApiEndpoint:
+    Description: The endpoint URL for the backend API.
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/
