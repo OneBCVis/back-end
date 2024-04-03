@@ -197,9 +197,9 @@ def get_full_block_response(result_block):
         "nonce": result_block[7],
         "difficulty": result_block[8],
         "height": result_block[9],
-        "transactions": json.loads(result_block[10]),
-        "uncles": json.loads(result_block[11]),
-        "sidecar": json.loads(result_block[12])
+        "transactions": json.loads(result_block[10]) if result_block[10] else [],
+        "uncles": json.loads(result_block[11]) if result_block[11] else [],
+        "sidecar": json.loads(result_block[12]) if result_block[12] else []
     }
 
     return block_dict

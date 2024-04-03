@@ -120,8 +120,8 @@ def get_data_from_rds(event):
                     "type": result_transaction[0][3],
                     "nonce": result_transaction[0][4],
                     "fee": result_transaction[0][5],
-                    "senders": json.loads(result_transaction[0][6]),
-                    "receivers": json.loads(result_transaction[0][7])
+                    "senders": json.loads(result_transaction[0][6]) if result_transaction[0][6] else [],
+                    "receivers": json.loads(result_transaction[0][7]) if result_transaction[0][7] else []
                 })
             }
 
