@@ -87,13 +87,12 @@ Resources:
   TransactionBlockStream:
     Type: AWS::Kinesis::Stream
     Properties:
-      ShardCount: !Ref KinesisShardCount
       RetentionPeriodHours: !Ref KinesisStreamRetentionPeriod
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
       StreamModeDetails:
-        StreamMode: PROVISIONED
+        StreamMode: ON_DEMAND
   TransactionBlockConsumer:
     Type: AWS::Kinesis::StreamConsumer
     Properties:
@@ -651,10 +650,6 @@ Parameters:
     Type: Number
     Default: 1
     Description: The maximum time in seconds to wait for a full batch.
-  KinesisShardCount:
-    Type: Number
-    Default: 5
-    Description: The number of shards in the Kinesis stream.
   KinesisStreamRetentionPeriod:
     Type: Number
     Default: 24
