@@ -202,7 +202,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -280,7 +280,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -351,7 +351,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -437,7 +437,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -515,7 +515,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -607,6 +607,9 @@ Parameters:
   RDSHostname:
     Type: String
     Description: The hostname for the RDS database or RDS database proxy.
+  RDSReadOnlyHostname:
+    Type: String
+    Description: The read-only hostname for the RDS database or RDS database proxy.
   RDSSecretArn:
     Type: String
     Description: The ARN of the secret for the RDS database.
