@@ -87,13 +87,12 @@ Resources:
   TransactionBlockStream:
     Type: AWS::Kinesis::Stream
     Properties:
-      ShardCount: !Ref KinesisShardCount
       RetentionPeriodHours: !Ref KinesisStreamRetentionPeriod
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
       StreamModeDetails:
-        StreamMode: PROVISIONED
+        StreamMode: ON_DEMAND
   TransactionBlockConsumer:
     Type: AWS::Kinesis::StreamConsumer
     Properties:
@@ -189,7 +188,6 @@ Resources:
       EventSourceArn: !GetAtt TransactionBlockConsumer.ConsumerARN
       FunctionName: !GetAtt TransactionBlockPublisher.Arn
       StartingPosition: TRIM_HORIZON
-      ParallelizationFactor: 10
   GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
@@ -525,7 +523,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -655,10 +653,6 @@ Parameters:
     Type: Number
     Default: 1
     Description: The maximum time in seconds to wait for a full batch.
-  KinesisShardCount:
-    Type: Number
-    Default: 5
-    Description: The number of shards in the Kinesis stream.
   KinesisStreamRetentionPeriod:
     Type: Number
     Default: 24

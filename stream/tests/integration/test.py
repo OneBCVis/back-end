@@ -254,10 +254,16 @@ class Test(TestCase):
             self.assertTrue(len(miners) == 5)
         else:
             self.assertTrue(len(miners) == len(self.miners))
-        ordered_miners = sorted(
+        _miners = sorted(
             self.miners.items(), key=lambda x: x[1], reverse=True)
-        if (len(ordered_miners) > 5):
-            ordered_miners = ordered_miners[:5]
+        if (len(_miners) > 5):
+            ordered_miners = _miners[:5]
+            for i in range(5, len(_miners)):
+                if ordered_miners[-1][1] == _miners[i][1]:
+                    ordered_miners.append(_miners[i])
+        else:
+            ordered_miners = _miners
+
         for miner, count in miners:
             self.assertIn((miner, count), ordered_miners)
 

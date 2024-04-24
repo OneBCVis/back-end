@@ -87,18 +87,12 @@ Resources:
   TransactionBlockStream:
     Type: AWS::Kinesis::Stream
     Properties:
-      ShardCount: !Ref KinesisShardCount
       RetentionPeriodHours: !Ref KinesisStreamRetentionPeriod
       StreamEncryption:
         EncryptionType: KMS
         KeyId: alias/aws/kinesis
       StreamModeDetails:
-        StreamMode: PROVISIONED
-  TransactionBlockConsumer:
-    Type: AWS::Kinesis::StreamConsumer
-    Properties:
-      StreamARN: !GetAtt TransactionBlockStream.Arn
-      ConsumerName: TransactionBlockConsumer
+        StreamMode: ON_DEMAND
   TransactionBlockPublisher:
     Type: AWS::Serverless::Function
     Properties:
@@ -157,10 +151,6 @@ Resources:
                 Resource: !GetAtt TransactionBlockStream.Arn
               - Effect: Allow
                 Action:
-                  - kinesis:SubscribeToShard
-                Resource: !GetAtt TransactionBlockConsumer.ConsumerARN
-              - Effect: Allow
-                Action:
                   - rds-data:ExecuteStatement
                 Resource: !Ref RDSProxyArn
               - Effect: Allow
@@ -186,10 +176,9 @@ Resources:
     Properties:
       BatchSize: !Ref KinesisBatchSize
       MaximumBatchingWindowInSeconds: !Ref KinesisBatchWindow
-      EventSourceArn: !GetAtt TransactionBlockConsumer.ConsumerARN
+      EventSourceArn: !GetAtt TransactionBlockStream.Arn
       FunctionName: !GetAtt TransactionBlockPublisher.Arn
       StartingPosition: TRIM_HORIZON
-      ParallelizationFactor: 10
   GetStreamData:
     Type: AWS::Serverless::Function
     Properties:
@@ -525,7 +514,7 @@ Resources:
       Environment:
         Variables:
           RDS_PORT: !Ref RDSPort
-          RDS_HOSTNAME: !Ref RDSHostname
+          RDS_HOSTNAME: !Ref RDSReadOnlyHostname
           RDS_SECRETARN: !Ref RDSSecretArn
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
@@ -600,11 +589,6 @@ Metadata:
         SecretArn: !Ref RDSSecretArn
         Arn: !Ref RDSProxyArn
   AWS::Composer::Groups:
-    KinesisConsumer:
-      Label: Kinesis Enhanced Fan-Out Consumer
-      Members:
-        - TransactionBlockConsumer
-        - TransactionBlockMapper
     LambdaFunctions:
       Label: Serverless Lambda Functions
       Members:
@@ -655,10 +639,6 @@ Parameters:
     Type: Number
     Default: 1
     Description: The maximum time in seconds to wait for a full batch.
-  KinesisShardCount:
-    Type: Number
-    Default: 5
-    Description: The number of shards in the Kinesis stream.
   KinesisStreamRetentionPeriod:
     Type: Number
     Default: 24

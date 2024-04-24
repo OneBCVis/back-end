@@ -111,7 +111,7 @@ ist: begin
         while i < json_length(t_senders) do
             set sender = json_extract(json_extract(t_senders, concat('$[', i, ']')), '$[0]');
             set amt = json_extract(json_extract(t_senders, concat('$[', i, ']')), '$[1]');
-            insert into txn_sender (txn_hash, sender_key, amount) values (t_hash, sender, amt);
+            insert into txn_sender (txn_hash, sender_key, amount) values (t_hash, json_unquote(sender), amt);
             set i = i + 1;
         end while;
 
@@ -119,7 +119,7 @@ ist: begin
         while i < json_length(t_receivers) do
             set receiver = json_extract(json_extract(t_receivers, concat('$[', i, ']')), '$[0]');
             set amt = json_extract(json_extract(t_receivers, concat('$[', i, ']')), '$[1]');
-            insert into txn_receiver (txn_hash, receiver_key, amount) values (t_hash, receiver, amt);
+            insert into txn_receiver (txn_hash, receiver_key, amount) values (t_hash, json_unquote(receiver), amt);
             set i = i + 1;
         end while;
 
@@ -141,4 +141,110 @@ ist: begin
     end if;
     set result = -1;
     leave ist;
+end;
+
+create procedure insert_block_transactions(
+    in ibt_b_hash varchar(128),
+    in ibt_txns json,
+    out ibt_result int
+)
+ibt: begin
+    declare ibt_i int default 0;
+    declare ibt_txn json;
+    declare ibt_t_hash varchar(128);
+    declare ibt_t_status varchar(16);
+    declare ibt_t_amount int;
+    declare ibt_t_type int;
+    declare ibt_t_nonce int;
+    declare ibt_t_fee int;
+    declare ibt_t_senders json;
+    declare ibt_t_receivers json;
+    declare ibt_t_result int;
+    declare ibt_total_amount int;
+    declare ibt_total_fee int;
+
+    set ibt_total_amount = 0;
+    set ibt_total_fee = 0;
+    set ibt_i = 0;
+    while ibt_i < json_length(ibt_txns) do
+        set ibt_txn = json_extract(ibt_txns, concat('$[', ibt_i, ']'));
+        set ibt_t_hash = json_extract(ibt_txn, '$.Hash');
+        set ibt_t_status = json_extract(ibt_txn, '$.Status');
+        set ibt_t_amount = json_extract(ibt_txn, '$.Amount');
+        set ibt_t_type = json_extract(ibt_txn, '$.Type');
+        set ibt_t_nonce = json_extract(ibt_txn, '$.Nonce');
+        set ibt_t_fee = json_extract(ibt_txn, '$.Fee');
+        set ibt_t_senders = json_extract(ibt_txn, '$.Senders');
+        set ibt_t_receivers = json_extract(ibt_txn, '$.Receivers');
+
+        set ibt_total_amount = ibt_total_amount + ibt_t_amount;
+        set ibt_total_fee = ibt_total_fee + ibt_t_fee;
+
+        call insert_transaction(
+            json_unquote(ibt_t_hash),
+            json_unquote(ibt_t_status),
+            ibt_t_amount,
+            ibt_t_type,
+            ibt_t_nonce,
+            ibt_t_fee,
+            ibt_t_senders,
+            ibt_t_receivers,
+            true,
+            @ibt_t_result
+        );
+
+        insert into block_txn (block_hash, txn_hash) values (ibt_b_hash, json_unquote(ibt_t_hash));
+        set ibt_i = ibt_i + 1;
+    end while;
+    update block
+        set
+            total_amount = ibt_total_amount,
+            total_fee = ibt_total_fee,
+            txn_count = json_length(ibt_txns)
+        where block_hash = ibt_b_hash;
+    set ibt_result = 0;
+    leave ibt;
+end;
+
+create procedure insert_block_uncles(
+    in ibu_b_hash varchar(128),
+    in ibu_uncle_hashes json,
+    out ibu_result int
+)
+ibu: begin
+    declare ibu_i int default 0;
+    declare ibu_u_hash varchar(128);
+
+    set ibu_i = 0;
+    while ibu_i < json_length(ibu_uncle_hashes) do
+        set ibu_u_hash = lower(json_extract(ibu_uncle_hashes, concat('$[', ibu_i, ']')));
+        insert into uncle (uncle_hash, block_hash) values (json_unquote(ibu_u_hash), ibu_b_hash);
+        set ibu_i = ibu_i + 1;
+    end while;
+    set ibu_result = 0;
+    leave ibu;
+end;
+
+create procedure insert_block_sidecar(
+    in ibs_b_hash varchar(128),
+    in ibs_sidecar json,
+    out ibs_result int
+)
+ibs: begin
+    declare ibs_i int default 0;
+    declare ibs_ocd_id varchar(128);
+    declare ibs_t_id varchar(128);
+    declare ibs_ocd_size int;
+
+    set ibs_i = 0;
+    while ibs_i < json_length(ibs_sidecar) do
+        set ibs_ocd_id = json_extract(json_extract(ibs_sidecar, concat('$[', ibs_i, ']')), '$.ID');
+        set ibs_t_id = json_extract(json_extract(ibs_sidecar, concat('$[', ibs_i, ']')), '$.TransactionID');
+        set ibs_ocd_size = json_extract(json_extract(ibs_sidecar, concat('$[', ibs_i, ']')), '$.Size');
+        insert into off_chain_data (block_hash, id, txn_id, size) values (
+            ibs_b_hash, json_unquote(ibs_ocd_id), json_unquote(ibs_t_id), ibs_ocd_size);
+        set ibs_i = ibs_i + 1;
+    end while;
+    set ibs_result = 0;
+    leave ibs;
 end;

@@ -39,33 +39,33 @@ region = os.environ['RDS_REGION']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+try:
+    client = boto3.client(
+        service_name='secretsmanager', region_name=region)
+    response = client.get_secret_value(SecretId=rds_secret_arn)
+    secret = json.loads(response["SecretString"])
+    user_name = secret["username"]
+    password = secret["password"]
+    conn = pymysql.connect(host=rds_host, user=user_name,
+                           passwd=password, db=db_name, connect_timeout=5)
+except pymysql.MySQLError as e:
+    logger.error(
+        "ERROR: Unexpected error: Could not connect to MySQL instance.")
+    logger.error(e)
+    exit(1)
+except Exception as e:
+    logger.error("ERROR: Unexpected error.")
+    logger.error(e)
+    exit(1)
+
 
 def handler(event, context):
-    try:
-        client = boto3.client(
-            service_name='secretsmanager', region_name=region)
-        response = client.get_secret_value(SecretId=rds_secret_arn)
-        secret = json.loads(response["SecretString"])
-        user_name = secret["username"]
-        password = secret["password"]
-        conn = pymysql.connect(host=rds_host, user=user_name,
-                               passwd=password, db=db_name, connect_timeout=5)
-    except pymysql.MySQLError as e:
-        logger.error(
-            "ERROR: Unexpected error: Could not connect to MySQL instance.")
-        logger.error(e)
-        exit(1)
-    except Exception as e:
-        logger.error("ERROR: Unexpected error.")
-        logger.error(e)
-        exit(1)
-
-    process_records(event["Records"], conn)
+    process_records(event["Records"])
 
     return {}
 
 
-def process_records(records, conn):
+def process_records(records):
     try:
         with conn.cursor() as cur:
             for record in records:
@@ -79,20 +79,18 @@ def process_records(records, conn):
                     logger.error(f"ERROR: Could not decode message: {e}")
                     continue
                 if message_type == 'TRANSACTION':
-                    process_transaction(message_data, conn, cur)
+                    process_transaction(message_data, cur)
                 elif message_type == 'BLOCK':
-                    process_block(message_data, conn, cur)
+                    process_block(message_data, cur)
                 else:
                     logger.error(f"ERROR: Unknown record type: {message_type}")
-        conn.close()
     except Exception as e:
         logger.error(f"ERROR: Could not process records: {e}")
         if (conn.open):
             conn.rollback()
-            conn.close()
 
 
-def process_transaction(txn, conn, cur, is_full=False):
+def process_transaction(txn, cur):
     try:
         sql_insert_txn = "call insert_transaction(%s, %s, %s, %s, %s, %s, %s, %s, %s, @result)"
 
@@ -105,7 +103,7 @@ def process_transaction(txn, conn, cur, is_full=False):
             txn["Fee"],
             json.dumps(txn["Sender"]),
             json.dumps(txn["Receiver"]),
-            is_full
+            False
         ))
 
         cur.execute("SELECT @result AS result")
@@ -136,14 +134,9 @@ def process_transaction(txn, conn, cur, is_full=False):
     return None, None
 
 
-def process_block(block, conn, cur):
+def process_block(block, cur):
     try:
         total_amount, total_fee, txn_cnt = 0, 0, len(block["Transactions"])
-        for txn in block["Transactions"]:
-            amount, fee = process_transaction(txn, conn, cur, True)
-            if (amount != None) and (fee != None):
-                total_amount += int(amount)
-                total_fee += int(fee)
 
         sql_insert_block = """INSERT INTO block
                                 (block_hash, previous_block_hash, height, nonce, difficulty,
@@ -164,24 +157,45 @@ def process_block(block, conn, cur):
             txn_cnt
         ))
 
-        for txn in block["Transactions"]:
-            sql_insert_txn = "INSERT INTO block_txn (block_hash, txn_hash) VALUES (%s, %s)"
-            cur.execute(sql_insert_txn, (blockHash, txn["Hash"].lower()))
+        if len(block["Transactions"]) > 0:
+            sql_insert_txns = "call insert_block_transactions(%s, %s, @ibt_result)"
+            cur.execute(sql_insert_txns, (blockHash,
+                        json.dumps(block["Transactions"])))
+            cur.execute(
+                "SELECT @ibt_result AS result")
+            result = cur.fetchone()[0]
+            if result == 0:
+                logger.info(
+                    f"INFO: Inserted block transactions with hash: {block['Hash']}")
+            else:
+                logger.error(
+                    f"ERROR: Could not process block transactions: {block['Hash']}")
 
-        for uncle in block["Uncles"]:
-            sql_insert_uncle = "INSERT INTO uncle (uncle_hash, block_hash) VALUES (%s, %s)"
-            cur.execute(sql_insert_uncle, (uncle.lower(), blockHash))
+        if len(block["Uncles"]) > 0:
+            sql_insert_uncles = "call insert_block_uncles(%s, %s, @ibu_result)"
+            cur.execute(sql_insert_uncles, (blockHash,
+                        json.dumps(block["Uncles"])))
+            cur.execute("SELECT @ibu_result AS result")
+            result = cur.fetchone()[0]
+            if result == 0:
+                logger.info(
+                    f"INFO: Inserted block uncles with hash: {block['Hash']}")
+            else:
+                logger.error(
+                    f"ERROR: Could not process block uncles: {block['Hash']}")
 
-        for offChainData in block["Sidecar"]:
-            sql_insert_off_chain = """INSERT INTO off_chain_data
-                                        (block_hash, id, txn_id, size)
-                                        VALUES (%s, %s, %s, %s)"""
-            cur.execute(sql_insert_off_chain, (
-                blockHash,
-                offChainData["ID"],
-                offChainData["TransactionID"],
-                offChainData["Size"]
-            ))
+        if len(block["Sidecar"]) > 0:
+            sql_insert_sidecar = "call insert_block_sidecar(%s, %s, @ibs_result)"
+            cur.execute(sql_insert_sidecar, (blockHash,
+                        json.dumps(block["Sidecar"])))
+            cur.execute("SELECT @ibs_result AS result")
+            result = cur.fetchone()[0]
+            if result == 0:
+                logger.info(
+                    f"INFO: Inserted block sidecar with hash: {block['Hash']}")
+            else:
+                logger.error(
+                    f"ERROR: Could not process block sidecar: {block['Hash']}")
 
         logger.info(f"INFO: Inserted block with hash: {block['Hash']}")
         conn.commit()
