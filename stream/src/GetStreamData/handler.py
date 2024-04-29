@@ -5,6 +5,7 @@ import logging
 import os
 import boto3
 import jsonschema
+from redis.cluster import Redis
 
 
 # CORS
@@ -22,6 +23,10 @@ rds_proxy_host = os.environ['RDS_HOSTNAME']
 db_name = os.environ['RDS_DB_NAME']
 region = os.environ['RDS_REGION']
 
+# Redis settings
+redis_host = os.environ['REDIS_HOST']
+redis_port = os.environ['REDIS_PORT']
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -30,11 +35,11 @@ schema = {
     "properties": {
         "start_time": {
             "type": "string",
-            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$"
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$"
         },
         "end_time": {
             "type": "string",
-            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$"
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$"
         }
     },
     "required": ["start_time", "end_time"]
@@ -53,9 +58,9 @@ def get_data_from_rds(event):
 
         try:
             datetime.strptime(
-                params["start_time"], '%Y-%m-%d %H:%M:%S.%f')
+                params["start_time"], '%Y-%m-%d %H:%M:%S')
             datetime.strptime(
-                params["end_time"], '%Y-%m-%d %H:%M:%S.%f')
+                params["end_time"], '%Y-%m-%d %H:%M:%S')
         except ValueError as e:
             logger.error(f"ERROR: Invalid date format: {e}")
             return {
@@ -63,64 +68,105 @@ def get_data_from_rds(event):
                 "headers": {
                     "Content-Type": "application/json"
                 },
-                'body': json.dumps('Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS.SSS')
+                'body': json.dumps('Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS')
             }
 
-        start_timestamp = params["start_time"]
-        end_timestamp = params["end_time"]
+        start_timestamp = int(datetime.strptime(
+            params["start_time"] + " +00:00", '%Y-%m-%d %H:%M:%S %z').timestamp())
+        end_timestamp = int(datetime.strptime(
+            params["end_time"] + " +00:00", '%Y-%m-%d %H:%M:%S %z').timestamp())
 
-        client = boto3.client(
-            service_name='secretsmanager', region_name=region)
-        response = client.get_secret_value(SecretId=rds_secret_arn)
-        secret = json.loads(response["SecretString"])
-        user_name = secret["username"]
-        password = secret["password"]
+        if (start_timestamp >= end_timestamp):
+            logger.error("ERROR: start_time %s should be less than end_time %s",
+                         params["start_time"], params["end_time"])
+            return {
+                'statusCode': 400,
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                'body': json.dumps('start_time should be less than end_time')
+            }
 
-        # Connect to the database
-        conn = pymysql.connect(host=rds_proxy_host, user=user_name,
-                               passwd=password, db=db_name, connect_timeout=5)
+        unavailable = []
+        transactions = []
+        blocks = []
+        redis_client = Redis(host=redis_host, port=redis_port)
+        logger.info("SUCCESS: Redis Cluster connection created")
+        for i in range(start_timestamp, end_timestamp):
+            if redis_client.exists(i):
+                logger.info(
+                    f"INFO: Data is available in Redis for timestamp: {i}")
+                data = json.loads(redis_client.get(i).decode("utf-8"))
+                transactions += data["transactions"]
+                blocks += data["blocks"]
+            else:
+                unavailable.append(i)
 
-        cursor = conn.cursor()
+        if (len(unavailable) > 0):
+            logger.info(
+                f"INFO: Data is not available in Redis for timestamps: {unavailable}. Fetching data from RDS.")
 
-        logger.info("SUCCESS: Able to connect to RDS MySQL instance")
+            client = boto3.client(
+                service_name='secretsmanager', region_name=region)
+            response = client.get_secret_value(SecretId=rds_secret_arn)
+            secret = json.loads(response["SecretString"])
+            user_name = secret["username"]
+            password = secret["password"]
 
-        query_get_transactions = """
-            SELECT t.txn_hash, t.status, t.amount, t.type, t.fee
-            FROM transaction t
-            WHERE t.insert_time >= %s AND t.insert_time  < %s"""
-        cursor.execute(query_get_transactions,
-                       (start_timestamp, end_timestamp))
-        result_transactions = cursor.fetchall()
+            # Connect to the database
+            conn = pymysql.connect(host=rds_proxy_host, user=user_name,
+                                   passwd=password, db=db_name, connect_timeout=5)
 
-        query_get_blocks = """
-            SELECT
-                b.block_hash,
-                b.previous_block_hash,
-                JSON_ARRAYAGG(bt.txn_hash) AS transactions,
-                b.total_amount,
-                b.total_fee,
-                b.txn_count,
-                b.time_stamp,
-                b.miner
-            FROM
-                block b
-            LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
-            WHERE
-                b.insert_time >= %s AND b.insert_time < %s
-            GROUP BY
-                b.block_hash"""
-        cursor.execute(query_get_blocks, (start_timestamp, end_timestamp))
-        result_blocks = cursor.fetchall()
+            cursor = conn.cursor()
 
-        cursor.close()
-        conn.close()
+            logger.info("SUCCESS: Able to connect to RDS MySQL instance")
+
+            for i in unavailable:
+                query_get_transactions = """
+                    SELECT t.txn_hash, t.status, t.amount, t.type, t.fee
+                    FROM transaction t
+                    WHERE t.insert_time >= %s AND t.insert_time  < %s"""
+                cursor.execute(query_get_transactions,
+                               (i * 1000, (i + 1) * 1000))
+                result_transactions = get_transaction_response(
+                    cursor.fetchall())
+                transactions += result_transactions
+
+                query_get_blocks = """
+                    SELECT
+                        b.block_hash,
+                        b.previous_block_hash,
+                        JSON_ARRAYAGG(bt.txn_hash) AS transactions,
+                        b.total_amount,
+                        b.total_fee,
+                        b.txn_count,
+                        b.time_stamp,
+                        b.miner
+                    FROM
+                        block b
+                    LEFT JOIN block_txn bt ON b.block_hash = bt.block_hash
+                    WHERE
+                        b.insert_time >= %s AND b.insert_time < %s
+                    GROUP BY
+                        b.block_hash"""
+                cursor.execute(query_get_blocks, (i * 1000, (i + 1) * 1000))
+                result_blocks = get_block_response(cursor.fetchall())
+                blocks += result_blocks
+
+                redis_client.set(
+                    i, json.dumps({"transactions": result_transactions, "blocks": result_blocks}))
+                logger.info(
+                    f"INFO: Data stored in Redis for timestamp: {i}")
+
+            cursor.close()
+            conn.close()
 
         response = {
             "statusCode": 200,
             "headers": headers,
             "body": json.dumps({
-                "transactions": get_transaction_response(result_transactions),
-                "blocks": get_block_response(result_blocks)
+                "transactions": transactions,
+                "blocks": blocks
             })
         }
 
@@ -130,7 +176,7 @@ def get_data_from_rds(event):
             "statusCode": 400,
             "headers": headers,
             "body": json.dumps({
-                "error": "Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS.SSS"
+                "error": "Invalid start_time or end_time format. Please use the format: YYYY-MM-DD HH:MM:SS"
             })
         }
 

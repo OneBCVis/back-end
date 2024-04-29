@@ -217,6 +217,8 @@ Resources:
           RDS_DB_NAME: !Ref RDSDBName
           RDS_REGION: !Ref AWS::Region
           CORS_ORIGIN: !Ref CorsOrigin
+          REDIS_HOST: !GetAtt RedisCache.RedisEndpoint.Address
+          REDIS_PORT: !Ref RedisPort
       Policies:
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref RDSSecretArn
@@ -590,6 +592,15 @@ Resources:
       SecurityGroupIds:
         - !Ref VPCSecurityGroup
       PrivateDnsEnabled: true
+  RedisCache:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      CacheNodeType: !Ref RedisCacheNodeType
+      Engine: redis
+      NumCacheNodes: !Ref RedisNodeCount
+      VpcSecurityGroupIds:
+        - !Ref VPCSecurityGroup
+      Port: !Ref RedisPort
 Metadata:
   AWS::Composer::ExternalResources:
     RDS:
@@ -636,13 +647,15 @@ Parameters:
     Description: The name of the RDS database.
   VPCId:
     Type: AWS::EC2::VPC::Id
-    Description: The ID of the VPC where the Lambda functions will be deployed. Ex. vpc-123a351e
+    Description: The ID of the VPC where the Lambda functions will be deployed. Ex.
+      vpc-123a351e
   VPCSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: The security group for the Lambda functions. Ex. sg-a123fd85
   VPCSubnets:
     Type: List<String>
-    Description: The list of subnets where the Lambda functions will be deployed. At least one subnet is required. Ex. subnet-123a351e, subnet-456b351e
+    Description: The list of subnets where the Lambda functions will be deployed. At
+      least one subnet is required. Ex. subnet-123a351e, subnet-456b351e
   CorsOrigin:
     Type: String
     Default: '*'
@@ -663,6 +676,18 @@ Parameters:
     Type: Number
     Default: 24
     Description: The number of hours to retain data in the stream.
+  RedisCacheNodeType:
+    Type: String
+    Default: cache.m7g.xlarge
+    Description: The node type for the ElastiCache cluster.
+  RedisNodeCount:
+    Type: Number
+    Default: 1
+    Description: The number of nodes in the ElastiCache cluster.
+  RedisPort:
+    Type: Number
+    Default: 6379
+    Description: The port for the ElastiCache cluster.
 Outputs:
   TransactionBlockStreamArn:
     Description: The ARN of the Kinesis stream.
