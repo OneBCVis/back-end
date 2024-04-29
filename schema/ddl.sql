@@ -10,7 +10,8 @@ create table if not exists block
     total_amount        int             not null,
     total_fee           int             not null,
     txn_count           int             not null,
-    insert_time         timestamp(3)    not null default current_timestamp(3),
+    insert_time         bigint          not null
+                default (unix_timestamp(current_timestamp(3)) * 1000),
     primary key (block_hash)
 );
 
@@ -49,7 +50,8 @@ create table if not exists transaction
     type        int                                     not null,
     nonce       int                                     not null,
     fee         int                                     not null,
-    insert_time timestamp(3)                            not null default current_timestamp(3),
+    insert_time bigint                                  not null
+                default (unix_timestamp(current_timestamp(3)) * 1000),
     primary key (txn_hash),
     foreign key (type) references txn_type(type)
 );
